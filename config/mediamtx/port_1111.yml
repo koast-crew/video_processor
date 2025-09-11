@@ -1,0 +1,14 @@
+# MediaMTX 설정 - RTSP:1111, RTMP:1911
+rtspAddress: :1111
+protocols: [tcp,udp]
+rtmpAddress: :1911
+rtpAddress: :8000
+rtcpAddress: :8001
+webrtcAddress: :9000
+hls: false
+webrtc: false
+srt: false
+
+paths:
+  live:
+    source: publisher

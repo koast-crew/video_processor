@@ -1,0 +1,59 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual envs and uv cache
+.venv/
+.envrc
+.uv/
+uv.lock
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Logs
+logs/
+*.log
+*.stderr.log
+start_all_streams.log
+
+# Media outputs
+output/
+!output/.gitkeep
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+.DS_Store
+Thumbs.db
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# OS / editor
+.vscode/
+.idea/
+*.iml
+
+# Systemd unit local copies
+*.service
+
+# Model/weights (keep directory, ignore large binaries)
+blur_module/models/*
+!blur_module/models/.gitkeep
+*.engine
+*.plan
+*.onnx
+*.pt
+
+# Shell temp scripts
+.tmp_run_*
+
+# Screen session dumps
+screenlog.* 
