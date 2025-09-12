@@ -37,7 +37,7 @@ def get_model_path():
     else:
         # 기본 경로 (fallback)
         current_dir = os.path.dirname(os.path.abspath(__file__))
-        default_model_path = os.path.join(current_dir, "models", "best_re_final.pt")
+        default_model_path = os.path.join(current_dir, "models", "best_re_final.engine")
         print(f"⚠️ 환경변수 HEAD_BLUR_MODEL_PATH가 없음. 기본 경로 사용: {default_model_path}")
         return default_model_path
 
