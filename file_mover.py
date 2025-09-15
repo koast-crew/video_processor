@@ -83,22 +83,20 @@ rotation_enabled = os.getenv('LOG_ROTATION', 'on').lower() in ('1','true','yes',
 rotate_interval = int(os.getenv('LOG_ROTATE_INTERVAL', '1'))  # 일 단위
 backup_count = int(os.getenv('LOG_BACKUP_COUNT', '7'))
 
-# 로그 디렉터리 결정: LOG_DIR > FINAL_OUTPUT_PATH/logs > 현재 스크립트 하위 logs
+# 로그 디렉터리: LOG_DIR만 사용 (없으면 파일 로깅 비활성화)
 log_dir_env = os.getenv('LOG_DIR')
-final_output_base = os.getenv('FINAL_OUTPUT_PATH')
-if log_dir_env:
-	default_logs_dir = Path(log_dir_env)
-elif final_output_base:
-	default_logs_dir = Path(final_output_base) / 'logs'
-else:
-	default_logs_dir = Path(__file__).parent / 'logs'
-default_logs_dir.mkdir(parents=True, exist_ok=True)
+logs_dir_path = None
+if log_dir_env and str(log_dir_env).strip():
+	logs_dir_path = Path(log_dir_env)
+	logs_dir_path.mkdir(parents=True, exist_ok=True)
 
-# 로그 파일명/경로: LOG_FILE이 파일명만 주어지면 logs 디렉터리 밑에 생성
+# 로그 파일 prefix: LOG_FILE의 이름만 사용(경로는 무시)
 log_file_env = os.getenv('LOG_FILE', 'file_mover.log')
-log_file_path = Path(log_file_env)
-if not log_file_path.is_absolute() and (str(log_file_path.parent) in ('', '.')):
-	log_file_path = default_logs_dir / log_file_path.name
+p = Path(log_file_env)
+if p.suffix == '.log':
+	prefix = p.stem if p.stem else 'file_mover'
+else:
+	prefix = p.name or 'file_mover'
 
 numeric_level = getattr(logging, log_level_env, logging.DEBUG)
 
@@ -106,16 +104,8 @@ handlers = [logging.StreamHandler(sys.stdout)]
 handlers[0].setLevel(numeric_level)
 
 log_to_file = os.getenv('PY_LOG_TO_FILE', 'on').lower() in ('1','true','yes','on')
-if log_to_file:
-	# 파일 핸들러는 날짜 기반 파일명(file_mover_YYYYMMDD.log)을 사용
-	logs_dir_path = default_logs_dir
-	if log_file_path.is_absolute():
-		logs_dir_path = log_file_path.parent
-	# prefix 결정 (확장자가 .log면 stem 사용)
-	if log_file_path.suffix == '.log':
-		prefix = log_file_path.stem if log_file_path.stem else 'file_mover'
-	else:
-		prefix = log_file_path.name or 'file_mover'
+if log_to_file and logs_dir_path is not None:
+	# 파일 핸들러는 날짜 기반 파일명(prefix_YYYYMMDD.log)을 사용하고 LOG_DIR만 대상으로 함
 	file_handler = DailyDateFileHandler(logs_dir_path, prefix)
 	file_handler.setLevel(getattr(logging, file_log_level_env, logging.INFO))
 	handlers.append(file_handler)

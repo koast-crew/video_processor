@@ -79,14 +79,15 @@ if [ "$missing_env" = true ]; then
     exit 1
 fi
 
-# 가상환경 활성화 (env-blur) [[memory:3627098]]
-if [ -f "$HOME/env-blur/bin/activate" ]; then
-    echo "🐍 가상환경 활성화: env-blur"
-    source "$HOME/env-blur/bin/activate"
-else
-    echo "⚠️  env-blur 가상환경을 찾을 수 없습니다"
-    echo "   계속 진행하지만 패키지 오류가 발생할 수 있습니다"
+# 실행 환경 확인: uv 사용
+if ! command -v uv >/dev/null 2>&1; then
+	echo "❌ uv를 찾을 수 없습니다"
+	echo "   설치: curl -LsSf https://astral.sh/uv/install.sh | sh"
+	exit 1
 fi
+# uv가 기본 PATH에 없는 환경 대비(로컬 기본 설치 경로 추가)
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+echo "🐍 실행 환경: uv 사용"
 
 echo ""
 
