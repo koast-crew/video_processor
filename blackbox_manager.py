@@ -146,6 +146,7 @@ class BlackboxManager:
     def _check_recording_condition(self, blackbox_data: BlackboxData):
         """녹화 조건 확인"""
         speed = blackbox_data.speed
+        net_opt = blackbox_data.net_opt
         
         if speed is None:
             # 속도 정보가 없으면 녹화 허용 (기본값)
@@ -153,7 +154,7 @@ class BlackboxManager:
             logger.debug("속도 정보 없음, 녹화 허용")
         else:
             # 속도 기준으로 녹화 조건 판단
-            new_recording_state = speed <= self.config.recording_speed_threshold
+            new_recording_state = (speed <= self.config.recording_speed_threshold) or (net_opt in [1, 2])
             # logger.debug(f"속도 {speed} knots, 임계값 {self.config.recording_speed_threshold}, "
             #             f"녹화 {'허용' if new_recording_state else '중단'}")
         

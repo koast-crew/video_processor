@@ -25,8 +25,8 @@ export BLUR_CONFIDENCE=${BLUR_CONFIDENCE:-0.5}
 
 # 출력 설정
 export TEMP_OUTPUT_PATH=${TEMP_OUTPUT_PATH:-./output/temp/}
-export FINAL_OUTPUT_PATH=${FINAL_OUTPUT_PATH:-/mnt/nas/cam/}
-export LOG_DIR=${LOG_DIR:-/mnt/nas/logs}
+export FINAL_OUTPUT_PATH=${FINAL_OUTPUT_PATH:-/mnt/raid5/cam/}
+export LOG_DIR=${LOG_DIR:-/mnt/raid5/logs}
 export DEFAULT_INPUT_FPS=${DEFAULT_INPUT_FPS:-15.0}
 export VIDEO_SEGMENT_DURATION=${VIDEO_SEGMENT_DURATION:-300} # 영상 길이 설정
 export VIDEO_WIDTH=${VIDEO_WIDTH:-1280}
@@ -65,6 +65,19 @@ export FFMPEG_PRESET=${FFMPEG_PRESET:-ultrafast}
 export FFMPEG_TUNE=${FFMPEG_TUNE:-zerolatency}
 # =====================================================================
 
+# ===================== FFmpeg 로깅/디버깅 설정 =====================
+# loglevel: quiet|panic|fatal|error|warning|info|verbose|debug|trace
+export FFMPEG_LOGLEVEL=${FFMPEG_LOGLEVEL:-error}
+# -report: ffmpeg 로그 리포트 파일 자동 생성 여부
+export FFMPEG_REPORT=${FFMPEG_REPORT:-false}
+# -stats: 진행 통계 출력 여부
+export FFMPEG_STATS=${FFMPEG_STATS:-false}
+# -debug 플래그 (예: ts,timestamp,mb_type). 비우면 적용 안함
+export FFMPEG_DEBUG=${FFMPEG_DEBUG:-}
+# -rtsp_flags 값 (예: prefer_tcp,listen,rtcp_to_source)
+export FFMPEG_RTSP_FLAGS=${FFMPEG_RTSP_FLAGS:-}
+# ==================================================================
+
 # =============================================================================
 # 사용자 설정: 스트림 개수 & RTSP URL 목록 (여기를 수정해서 사용)
 # - NUM_STREAMS: 생성할 스트림 수 (기본 6)
@@ -80,7 +93,7 @@ RTSP_URLS=(
     "rtsp://root:root@192.168.1.102:554/cam0_0"
     "rtsp://root:root@192.168.1.103:554/cam0_0"
     "rtsp://root:root@192.168.1.104:554/cam0_0"
-    "rtsp://10.2.10.158:1115/live"
+    "rtsp://10.2.10.158:1114/live"
     "rtsp://10.2.10.158:1116/live"
 )
 
@@ -222,6 +235,13 @@ FFMPEG_MIN_BITRATE=$MIN_BITRATE
 FFMPEG_MAX_BITRATE=$MAX_BITRATE
 FFMPEG_OUTPUT_FPS=$FFMPEG_OUTPUT_FPS
 FFMPEG_KEYINT=$FFMPEG_KEYINT
+
+# FFmpeg 로깅/디버깅 설정
+FFMPEG_LOGLEVEL=$FFMPEG_LOGLEVEL
+FFMPEG_REPORT=$FFMPEG_REPORT
+FFMPEG_STATS=$FFMPEG_STATS
+FFMPEG_DEBUG=$FFMPEG_DEBUG
+FFMPEG_RTSP_FLAGS=$FFMPEG_RTSP_FLAGS
 
 # =============================================================================
 # RTSP 송출 설정

@@ -85,6 +85,10 @@ class FFmpegConfig:
     buffer_size: str = get_env_value('FFMPEG_BUFFER_SIZE', "4M")
     vsync_mode: str = get_env_value('FFMPEG_VSYNC', 'cfr')  # cfr/vfr/drop
     loglevel: str = get_env_value('FFMPEG_LOGLEVEL', 'error')
+    ffmpeg_report: bool = get_env_value('FFMPEG_REPORT', False, bool)  # ffmpeg -report
+    ffmpeg_stats: bool = get_env_value('FFMPEG_STATS', True, bool)     # ffmpeg -stats
+    ffmpeg_debug: str = get_env_value('FFMPEG_DEBUG', None)            # ffmpeg -debug <flags>
+    rtsp_flags: str = get_env_value('FFMPEG_RTSP_FLAGS', None)         # -rtsp_flags prefer_tcp|listen|... (쉼표/공백 구분 허용)
     
     # 하드웨어 가속
     hardware_acceleration: str = get_env_value('FFMPEG_HWACCEL', "none")  # none,nvidia,intel,amd
@@ -92,6 +96,21 @@ class FFmpegConfig:
     def get_ffmpeg_command(self, input_settings: Dict, output_file: str) -> List[str]:
         """15fps VBR 최적화 FFmpeg 명령어 생성"""
         cmd = ['ffmpeg', '-y', '-hide_banner', '-loglevel', self.loglevel]
+        if self.ffmpeg_report:
+            cmd.append('-report')
+        if self.ffmpeg_stats:
+            cmd.append('-stats')
+        if self.ffmpeg_debug:
+            # 'timestamp' 또는 'ts'는 -debug_ts로 전달하고, 나머지만 -debug로 전달
+            debug_tokens = [t.strip() for t in re.split(r'[\s,]+', str(self.ffmpeg_debug)) if t and t.strip()]
+            remaining_tokens = []
+            for t in debug_tokens:
+                if t in ('timestamp', 'ts'):
+                    cmd.append('-debug_ts')
+                else:
+                    remaining_tokens.append(t)
+            if remaining_tokens:
+                cmd.extend(['-debug', ','.join(remaining_tokens)])
         
         # 하드웨어 가속 (필요시) - 입력이 rawvideo라 디코드 가속은 영향이 적지만, 향후 확장 고려
         if self.hardware_acceleration == "nvidia":
@@ -145,6 +164,21 @@ class FFmpegConfig:
     def get_ffmpeg_rtsp_command(self, input_settings: Dict, output_url: str, transport: str = 'tcp') -> List[str]:
         """RTSP 송출용 FFmpeg 명령어 생성"""
         cmd = ['ffmpeg', '-hide_banner', '-loglevel', self.loglevel]
+        if self.ffmpeg_report:
+            cmd.append('-report')
+        if self.ffmpeg_stats:
+            cmd.append('-stats')
+        if self.ffmpeg_debug:
+            # 'timestamp' 또는 'ts'는 -debug_ts로 전달하고, 나머지만 -debug로 전달
+            debug_tokens = [t.strip() for t in re.split(r'[\s,]+', str(self.ffmpeg_debug)) if t and t.strip()]
+            remaining_tokens = []
+            for t in debug_tokens:
+                if t in ('timestamp', 'ts'):
+                    cmd.append('-debug_ts')
+                else:
+                    remaining_tokens.append(t)
+            if remaining_tokens:
+                cmd.extend(['-debug', ','.join(remaining_tokens)])
         
         # 입력 설정 (rawvideo from stdin)
         cmd.extend([
@@ -197,6 +231,9 @@ class FFmpegConfig:
             '-vsync', self.vsync_mode,
             '-flush_packets', '1'
         ])
+        if self.rtsp_flags:
+            # 쉼표 또는 공백으로 구분된 플래그를 그대로 전달
+            cmd.extend(['-rtsp_flags', self.rtsp_flags])
         
         cmd.append(output_url)
         return cmd

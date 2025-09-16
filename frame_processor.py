@@ -238,7 +238,7 @@ class FrameProcessor(threading.Thread):
 				if self.blackbox_manager and not self.blackbox_manager.is_recording_enabled():
 					is_recording_allowed = False
 					if self.video_writer and self.video_writer.current_writer:
-						logger.info("속도 임계 초과로 저장 중단, 현재 세그먼트 finalize")
+						logger.info("조업중이 아니므로 저장 중단, 현재 세그먼트 finalize")
 						self.video_writer.finalize_current_video()
 				
 				# 프레임 처리

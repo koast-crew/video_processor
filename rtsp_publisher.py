@@ -28,6 +28,7 @@ class RtspPublisher:
 		self.config = config
 		self.process: Optional[subprocess.Popen] = None
 		self._stderr_file = None
+		self._stderr_path = None
 		self.is_opened: bool = False
 		self.frame_count: int = 0
 
@@ -42,6 +43,21 @@ class RtspPublisher:
 		except Exception:
 			stream_number = 'unknown'
 		return os.path.join(path, f"ffmpeg_rtsp_stream{stream_number}_{date_str}.stderr.log")
+
+	def _tail_stderr(self, num_bytes: int = 4096) -> str:
+		"""stderr 로그 파일의 마지막 바이트를 읽어 반환"""
+		try:
+			if not self._stderr_path or not os.path.exists(self._stderr_path):
+				return ""
+			with open(self._stderr_path, 'rb') as f:
+				f.seek(0, os.SEEK_END)
+				size = f.tell()
+				read_size = min(size, num_bytes)
+				f.seek(-read_size, os.SEEK_END)
+				data = f.read().decode('utf-8', errors='replace')
+				return data
+		except Exception as e:
+			return f"<stderr tail read failed: {e}>"
 
 	def start(self) -> bool:
 		"""FFmpeg 프로세스 시작"""
@@ -62,7 +78,9 @@ class RtspPublisher:
 				self.config.rtsp_output_transport
 			)
 			stderr_path = self._resolve_log_file()
+			self._stderr_path = stderr_path
 			self._stderr_file = open(stderr_path, 'ab', buffering=0)
+			logger.info(f"FFmpeg RTSP 명령: {' '.join(cmd)}")
 			self.process = subprocess.Popen(
 				cmd,
 				stdin=subprocess.PIPE,
@@ -71,14 +89,15 @@ class RtspPublisher:
 				bufsize=1
 			)
 			if self.process.poll() is not None:
-				logger.error(f"FFmpeg RTSP 프로세스 즉시 종료: 코드 {self.process.poll()}")
+				ret = self.process.poll()
+				logger.error(f"FFmpeg RTSP 프로세스 즉시 종료: 코드 {ret}\nstderr_tail=\n{self._tail_stderr()}")
 				self.is_opened = False
 				return False
 			self.is_opened = True
-			logger.info(f"RTSP 퍼블리셔 시작: {self.config.rtsp_output_url}")
+			logger.info(f"RTSP 퍼블리셔 시작: pid={self.process.pid} url={self.config.rtsp_output_url}")
 			return True
 		except Exception as e:
-			logger.error(f"RTSP 퍼블리셔 시작 실패: {e}")
+			logger.error(f"RTSP 퍼블리셔 시작 실패: {e}\nstderr_tail=\n{self._tail_stderr()}")
 			self.is_opened = False
 			return False
 
@@ -88,7 +107,8 @@ class RtspPublisher:
 			return False
 		try:
 			if self.process.poll() is not None:
-				logger.error(f"RTSP 퍼블리셔 프로세스 종료됨: {self.process.poll()}")
+				ret = self.process.poll()
+				logger.error(f"RTSP 퍼블리셔 프로세스 종료됨: 코드 {ret}\nstderr_tail=\n{self._tail_stderr()}")
 				self.is_opened = False
 				return False
 			if frame is None or frame.size == 0:
@@ -101,11 +121,11 @@ class RtspPublisher:
 			self.frame_count += 1
 			return True
 		except BrokenPipeError as e:
-			logger.error(f"RTSP 퍼블리셔 파이프 오류: {e}")
+			logger.error(f"RTSP 퍼블리셔 파이프 오류: {e} pid={getattr(self.process, 'pid', None)} frame_count={self.frame_count}\nstderr_tail=\n{self._tail_stderr()}")
 			self.is_opened = False
 			return False
 		except Exception as e:
-			logger.error(f"RTSP 퍼블리셔 write 실패: {e}")
+			logger.error(f"RTSP 퍼블리셔 write 실패: {e} pid={getattr(self.process, 'pid', None)} frame_count={self.frame_count}\nstderr_tail=\n{self._tail_stderr()}")
 			return False
 
 	def stop(self):

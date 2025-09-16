@@ -28,8 +28,8 @@ class BlackboxData:
 	roll: Optional[float] = None
 	pitch: Optional[float] = None
 	temperature: Optional[float] = None
-	status: Optional[str] = None
-	net_opt: Optional[str] = None
+	status: Optional[int] = None
+	net_opt: Optional[int] = None
 	recorded_date: Optional[datetime] = None
 
 @dataclass
