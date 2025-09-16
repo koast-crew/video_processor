@@ -14,7 +14,7 @@ sudo apt install nvidia-driver-570
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # 2) 파이썬 의존성 설치 (requirements.txt 기반 정확히 동기화)
-cd /home/koast-user/rtsp_processor
+cd /home/koast-user/oper/video_processor
 uv venv
 uv pip sync --index-strategy unsafe-best-match requirements.txt
 uv pip install "https://pypi.nvidia.com/tensorrt-cu12/tensorrt-cu12-10.0.1.tar.gz#sha256=ebb89f6f9b6d187265f3bc829e38cff6e27059508e9a160e229506e5d9b648a0"

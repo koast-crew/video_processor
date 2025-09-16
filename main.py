@@ -263,7 +263,7 @@ def main():
         rtsp_url = os.getenv('RTSP_URL')
         if not rtsp_url:
             logger.error("RTSP_URL 환경변수가 설정되지 않았습니다")
-            logger.info("사용법: RTSP_URL=rtsp://example.com/stream python -m rtsp_processor.main")
+            logger.info("사용법: RTSP_URL=rtsp://example.com/stream python -m video_processor.main")
             sys.exit(1)
         
         config = RTSPConfig.from_env(rtsp_url)

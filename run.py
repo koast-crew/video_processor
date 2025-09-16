@@ -88,7 +88,7 @@ def setup_logging():
 	# 파일명 프리픽스/디렉터리 파싱 (LOG_FILE이 지정되면 경로/이름을 반영하되 날짜는 핸들러가 부여)
 	log_file_env = os.getenv('LOG_FILE', '')
 	logs_dir_path = Path(default_logs_dir)
-	prefix = 'rtsp_processor'
+	prefix = 'video_processor'
 	if log_file_env:
 		p = Path(log_file_env)
 		if p.suffix == '.log':
@@ -166,7 +166,7 @@ def main():
             sys.exit(1)
         
         # 설정 로드
-        from rtsp_processor import RTSPProcessor, RTSPConfig
+        from video_processor import RTSPProcessor, RTSPConfig
         
         rtsp_url = os.getenv('RTSP_URL')
         config = RTSPConfig.from_env(rtsp_url)
