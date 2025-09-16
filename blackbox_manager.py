@@ -7,7 +7,7 @@ API에서 블랙박스 데이터를 주기적으로 수신하고 오버레이 �
 import threading
 import time
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Callable
 from dataclasses import dataclass
 
@@ -132,7 +132,7 @@ class BlackboxManager:
         if blackbox_data.recorded_date:
             timestamp = blackbox_data.recorded_date
         else:
-            timestamp = datetime.now()
+            timestamp = datetime.now(timezone.utc)
         
         self.latest_overlay_data = OverlayData(
             vessel_name=vessel_name,
