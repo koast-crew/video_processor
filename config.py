@@ -13,7 +13,12 @@ import logging
 
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    # DOTENV_PATH가 지정되면 해당 파일을 우선 로드하여 동시 실행 시 충돌 방지
+    dotenv_path = os.getenv("DOTENV_PATH")
+    if dotenv_path and os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path=dotenv_path, override=True)
+    else:
+        load_dotenv()
     ENV_LOADED = True
 except ImportError:
     ENV_LOADED = False

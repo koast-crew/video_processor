@@ -15,7 +15,7 @@ import queue
 import logging
 import numpy as np
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 try:
@@ -67,27 +67,27 @@ class OverlayRenderer:
 	def create_single_line_overlay(self) -> str:
 		"""1줄 오버레이 텍스트 생성 (상단 좌측) - 블랙박스 데이터 반영"""
 		
+		# 현재 UTC 시간 가져오기
+		timestamp = datetime.now(timezone.utc)
+		
 		# 블랙박스 데이터에서 오버레이 정보 가져오기
 		if self.blackbox_manager:
 			overlay_data = self.blackbox_manager.get_overlay_data()
 			if overlay_data:
-				# 블랙박스 데이터 사용
+				# 블랙박스 데이터 사용 (시간 제외)
 				vessel_name = overlay_data.vessel_name
 				latitude = overlay_data.latitude
 				longitude = overlay_data.longitude
-				timestamp = overlay_data.timestamp
 			else:
 				# 블랙박스 데이터 없으면 기본값 사용
 				vessel_name = self.config.overlay_config.vessel_name
 				latitude = self.config.overlay_config.latitude
 				longitude = self.config.overlay_config.longitude
-				timestamp = datetime.now()
 		else:
 			# 블랙박스 매니저 없으면 기본값 사용
 			vessel_name = self.config.overlay_config.vessel_name
 			latitude = self.config.overlay_config.latitude
 			longitude = self.config.overlay_config.longitude
-			timestamp = datetime.now()
 		
 		# GPS 좌표를 60분법으로 변환
 		lat_dms, lon_dms = format_gps_coordinates(latitude, longitude)

@@ -19,7 +19,16 @@ from logging.handlers import TimedRotatingFileHandler
 from datetime import datetime
 from syslog import syslog, openlog, closelog, LOG_INFO, LOG_WARNING, LOG_ERR, LOG_PID, LOG_DAEMON
 
-load_dotenv()
+# DOTENV_PATH가 지정된 경우 해당 파일을 우선 로드하여 각 세션별 환경 격리
+try:
+    dotenv_path = os.getenv("DOTENV_PATH")
+    if dotenv_path and os.path.exists(dotenv_path):
+        load_dotenv(dotenv_path=dotenv_path, override=True)
+    else:
+        load_dotenv()
+except Exception:
+    # dotenv 로드 실패 시에도 진행 (필수 변수는 validate_environment에서 점검)
+    pass
 # 패키지 경로 추가
 sys.path.insert(0, str(Path(__file__).parent.parent))
 

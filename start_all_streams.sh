@@ -146,6 +146,20 @@ EOF
 # ------------------------------------------------------------------
 
 echo ""
+# 동기 시작 시각 계산: 환경변수 SYNC_START_AT(초 단위 epoch) > 대기초 SYNC_WAIT_SEC > 기본 (스트림수 + 5초)
+if [ -n "${SYNC_START_AT:-}" ] && [[ "${SYNC_START_AT}" =~ ^[0-9]+$ ]]; then
+    SYNC_START_EPOCH="$SYNC_START_AT"
+else
+    default_wait=$((NUM_STREAMS + 5))
+    wait_sec="${SYNC_WAIT_SEC:-$default_wait}"
+    if ! [[ "$wait_sec" =~ ^[0-9]+$ ]]; then
+        wait_sec="$default_wait"
+    fi
+    SYNC_START_EPOCH=$(( $(date +%s) + wait_sec ))
+fi
+export SYNC_START_EPOCH
+readable_start="$(date -d "@${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null || date -r "${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null || echo "${SYNC_START_EPOCH}")"
+echo "⏱️  모든 스트림 동기 시작 예정 시각: ${readable_start} (epoch: ${SYNC_START_EPOCH})"
 echo "🎬 ${NUM_STREAMS}개 스트림 실행 시작..."
 
 # 기존 세션 종료 (선택사항)
@@ -232,8 +246,17 @@ echo "스트림 ${STREAM_INDEX} 시작: $(date)" >> "$log_file"
 echo "설정파일: $ENV_FILE" >> "$log_file"
 echo "========================================" >> "$log_file"
 
-# .env 파일을 임시로 .env로 복사하여 실행
-cp "$ENV_FILE" ".env"
+## 동기 시작 시각까지 대기
+if [ -n "$SYNC_START_EPOCH" ]; then
+    now_epoch=$(date +%s)
+    if [ "$SYNC_START_EPOCH" -gt "$now_epoch" ]; then
+        remain=$(( SYNC_START_EPOCH - now_epoch ))
+        echo "동기 시작 대기 중... 목표: $(date -d "@${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null || date -r "${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null) (약 ${remain}s)" | tee -a "$log_file"
+        sleep "$remain"
+    fi
+fi
+
+# 주의: 각 세션은 자신의 env 파일을 DOTENV_PATH로 직접 로드하므로 .env 복사 불필요
 # 날짜 변경 시 자동 회전하며 로그 기록 (LOG_DIR은 셸 내부에서만 사용)
 uv run python -u "$PY_SCRIPT" 2>&1 | while IFS= read -r line; do
     new_date=$(date +%Y%m%d)
@@ -281,6 +304,8 @@ fi
     temp_mover_script="$SCRIPT_DIR/.tmp_run_file_mover.sh"
     # 파일 이동 서비스가 참조할 env 파일(최종 경로 추출용)
     FM_ENV_REF="$ENV_BASE_DIR/.env.stream1"
+    export FM_ENV_REF
+    export SCRIPT_DIR
     cat > "$temp_mover_script" <<'EOF'
 #!/bin/bash
 cd "$SCRIPT_DIR"
@@ -311,7 +336,9 @@ log_file="$LOG_DIR/$date_dir/${log_prefix}${current_date}.log"
 echo "파일 이동 서비스 시작: $(date)" >> "$log_file"
 echo "========================================" >> "$log_file"
 # 날짜 변경 시 자동 회전하며 로그 기록 (LOG_DIR은 셸 내부에서만 사용)
-uv run python -u file_mover.py 2>&1 | while IFS= read -r line; do
+# 파일 이동기 폴링 주기 단축을 위해 환경변수로 조정 가능 (기본 1초)
+export FILE_MOVER_GRACE_SECONDS=${FILE_MOVER_GRACE_SECONDS:-15}
+DOTENV_PATH="$FM_ENV_REF" uv run python -u file_mover.py 2>&1 | while IFS= read -r line; do
     new_date=$(date +%Y%m%d)
     if [ "$new_date" != "$current_date" ]; then
         current_date="$new_date"

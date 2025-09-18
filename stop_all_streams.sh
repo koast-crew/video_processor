@@ -29,6 +29,21 @@ else
     screen -list | grep -E "${BASE_SESSION_NAME}|${FILE_MOVER_SESSION}" | sed 's/^/   /'
 
     echo ""
+    echo "🔔 run.py 프로세스에 SIGTERM 전송(그레이스풀 종료 유도)..."
+    # uv 파이프라인/직접 실행 모두 대비하여 두 패턴에 신호 전송
+    pkill -TERM -f "python -u run.py" 2>/dev/null || true
+    pkill -TERM -f "uv run python -u run.py" 2>/dev/null || true
+    # 최대 10초 대기(FFmpeg finalize 및 파일 rename 시간)
+    for sec in $(seq 1 10); do
+        if pgrep -f "run.py" >/dev/null 2>&1; then
+            echo "   ⏳ finalize 대기 ${sec}/10초..."
+            sleep 1
+        else
+            break
+        fi
+    done
+
+    echo ""
     echo "🔄 세션 중지 중..."
 
     # 6개 스트림 세션 중지
@@ -51,7 +66,7 @@ else
         fi
     done
 
-    # 저장 중이던 temp_ 파일 이름 변경 (finalize) 처리 - 파일 이동기가 아직 살아있는 동안 수행
+    # 저장 중이던 temp_ 파일 이름 변경 (finalize) 처리 - 파일 이동기가 살아있는 동안 on_moved 이벤트로 이동됨
     echo ""
     echo "📦 저장 중 파일 정리(이름 변경) 진행..."
 
@@ -76,23 +91,52 @@ else
 		echo "   ℹ️  스트림 ${i}: env 파일 없음, 기본 경로로 처리"
 		temp_output_path="./output/temp/"
 	fi
-	# temp_ mp4만 대상 (우선)
+    # temp_ mp4만 대상 (우선)
 	shopt -s nullglob
 	pending_files=("$temp_output_path"/temp_*.mp4)
 	shopt -u nullglob
 	if [ ${#pending_files[@]} -gt 0 ]; then
 		echo "   스트림 ${i}: $temp_output_path 내 temp_ MP4 처리 ${#pending_files[@]}개"
-		for f in "${pending_files[@]}"; do
+        for f in "${pending_files[@]}"; do
 			base=$(basename "$f")
 			final_name="${base#temp_}"
-			if mv -f -- "$f" "$temp_output_path/$final_name"; then
+            # 크기 안정화 대기: 3회 연속 동일 크기이면 rename 진행
+            stable=false
+            prev_size=-1
+            same_count=0
+            for t in {1..15}; do
+                if [ ! -f "$f" ]; then break; fi
+                sz=$(stat -c %s "$f" 2>/dev/null || echo 0)
+                if [ "$sz" -eq "$prev_size" ] && [ "$prev_size" -ge 0 ]; then
+                    same_count=$((same_count+1))
+                    if [ "$same_count" -ge 3 ]; then
+                        stable=true; break
+                    fi
+                else
+                    same_count=0
+                    prev_size="$sz"
+                fi
+                sleep 1
+            done
+            # lsof로 열림 여부 확인(열려 있으면 보류)
+            if command -v lsof >/dev/null 2>&1; then
+                if lsof "$f" >/dev/null 2>&1; then
+                    echo "      ⚠️  파일 핸들 열림 상태: ${base} (rename 보류)"
+                    continue
+                fi
+            fi
+            if [ "$stable" != true ]; then
+                echo "      ⚠️  크기 불안정: ${base} (rename 보류)"
+                continue
+            fi
+            if mv -f -- "$f" "$temp_output_path/$final_name"; then
 				echo "      ▶ ${base} → ${final_name}"
 			else
 				echo "      ⚠️  이름 변경 실패: ${base}"
 			fi
 		done
 	fi
-	# temp_ srt도 함께 처리 (watcher가 srt 단독 rename도 감지 가능)
+    # temp_ srt도 함께 처리 (watcher가 srt 단독 rename도 감지 가능)
 	shopt -s nullglob
 	pending_srt=("$temp_output_path"/temp_*.srt)
 	shopt -u nullglob
@@ -101,8 +145,15 @@ else
 		for f in "${pending_srt[@]}"; do
 			base=$(basename "$f")
 			final_name="${base#temp_}"
-			if mv -f -- "$f" "$temp_output_path/$final_name"; then
+            if command -v lsof >/dev/null 2>&1; then
+                if lsof "$f" >/dev/null 2>&1; then
+                    echo "      ⚠️  파일 핸들 열림 상태: ${base} (rename 보류)"
+                    continue
+                fi
+            fi
+            if mv -f -- "$f" "$temp_output_path/$final_name"; then
 				echo "      ▶ ${base} → ${final_name}"
+                # 완료 마커 사용하지 않음 (이벤트/안정화 기반 이동)
 			else
 				echo "      ⚠️  이름 변경 실패: ${base}"
 			fi
@@ -113,6 +164,49 @@ else
     # 파일 이동기(Watcher)가 변경을 처리할 시간 대기
     echo "   파일 이동기 처리 대기..."
     sleep 3
+
+    # 최종 반복 스윕: temp 내 최종명(mp4/srt) 파일을 패턴 기반으로 최종 경로로 이동
+    echo ""
+    echo "🔁 최종 스윕 반복 수행..."
+    final_sweep_max=${FINAL_SWEEP_SECONDS:-20}
+    for pass in $(seq 1 $final_sweep_max); do
+        moved_count=0
+        for i in {1..6}; do
+            env_file="$ENV_BASE_DIR/.env.stream${i}"
+            [ -f "$env_file" ] || env_file="$ALT_ENV_DIR/.env.stream${i}"
+            if [ -f "$env_file" ]; then
+                temp_output_path=$(get_env_val TEMP_OUTPUT_PATH "$env_file"); [ -n "$temp_output_path" ] || temp_output_path="./output/temp/"
+                final_output_path=$(get_env_val FINAL_OUTPUT_PATH "$env_file"); [ -n "$final_output_path" ] || final_output_path="/mnt/raid5"
+            else
+                temp_output_path="./output/temp/"; final_output_path="/mnt/raid5"
+            fi
+            shopt -s nullglob
+            for f in "$temp_output_path"/*.mp4 "$temp_output_path"/*.srt; do
+                [ -e "$f" ] || continue
+                bn=$(basename "$f")
+                [[ "$bn" == temp_* ]] && continue
+                if [[ "$bn" =~ _([0-9]{6})_([0-9]{6})\.(mp4|srt)$ ]]; then
+                    date_part="${BASH_REMATCH[1]}"; time_part="${BASH_REMATCH[2]}"
+                    year=$((10#${date_part:0:2} + 2000))
+                    month=${date_part:2:2}; day=${date_part:4:2}; hour=${time_part:0:2}
+                    target_dir="$final_output_path/$year/$month/$day/$hour"
+                    mkdir -p "$target_dir"
+                    if mv -f -- "$f" "$target_dir/$bn"; then
+                        echo "   ▶ 스윕 이동: $bn → $target_dir/"
+                        moved_count=$((moved_count+1))
+                    fi
+                fi
+            done
+            shopt -u nullglob
+        done
+        if [ "$moved_count" -eq 0 ]; then
+            echo "   (pass $pass/$final_sweep_max) 추가 이동 없음"
+            break
+        else
+            echo "   (pass $pass/$final_sweep_max) 이동 처리: $moved_count"
+            sleep 1
+        fi
+    done
 
     echo ""
     echo "🧹 임시 파일 정리 중..."
@@ -157,19 +251,24 @@ else
     echo ""
     echo "🔄 파일 이동 서비스 중지 중..."
 
-    # 파일 이동 서비스 중지
+    # 파일 이동기는 스트림 종료 이후 남은 파일을 처리할 시간을 가진 뒤 종료
+    if pgrep -f "file_mover.py" >/dev/null 2>&1; then
+        echo "   ▶ file_mover.py에 SIGTERM 전송 (그레이스 5초)"
+        pkill -TERM -f "python -u file_mover.py" 2>/dev/null || true
+        pkill -TERM -f "uv run python -u file_mover.py" 2>/dev/null || true
+        for sec in $(seq 1 5); do
+            if pgrep -f "file_mover.py" >/dev/null 2>&1; then
+                echo "      ⏳ 파일 이동기 그레이스 종료 대기 ${sec}/5초..."
+                sleep 1
+            else
+                break
+            fi
+        done
+    fi
+    # 남아있으면 screen 레벨에서 종료 시도
     if screen -list | grep -q "$FILE_MOVER_SESSION"; then
-        echo "   ${FILE_MOVER_SESSION} 세션 중지 중..."
         screen -S "$FILE_MOVER_SESSION" -X quit 2>/dev/null
-        sleep 2
-        
-        if screen -list | grep -q "$FILE_MOVER_SESSION"; then
-            echo "   ⚠️  ${FILE_MOVER_SESSION} 세션이 아직 실행 중입니다"
-        else
-            echo "   ✅ ${FILE_MOVER_SESSION} 세션 중지 완료"
-        fi
-    else
-        echo "   ℹ️  파일 이동 서비스가 실행되지 않음"
+        sleep 1
     fi
 
     echo ""

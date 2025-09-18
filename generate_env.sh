@@ -8,7 +8,7 @@ echo "📝 RTSP 스트림용 .env 파일 자동 생성"
 echo "========================================"
 
 # 기본 설정
-BASE_IP="10.2.10.158"
+BASE_IP="10.2.10.127"
 START_PORT=1111
 END_PORT=1116
 VESSEL_NAME=${VESSEL_NAME:-vesselTest}
@@ -25,8 +25,8 @@ export BLUR_CONFIDENCE=${BLUR_CONFIDENCE:-0.5}
 
 # 출력 설정
 export TEMP_OUTPUT_PATH=${TEMP_OUTPUT_PATH:-./output/temp/}
-export FINAL_OUTPUT_PATH=${FINAL_OUTPUT_PATH:-/mnt/raid5/cam/}
-export LOG_DIR=${LOG_DIR:-/mnt/raid5/logs}
+export FINAL_OUTPUT_PATH=${FINAL_OUTPUT_PATH:-/mnt/nas/cam/}
+export LOG_DIR=${LOG_DIR:-/mnt/nas/logs}
 export DEFAULT_INPUT_FPS=${DEFAULT_INPUT_FPS:-15.0}
 export VIDEO_SEGMENT_DURATION=${VIDEO_SEGMENT_DURATION:-300} # 영상 길이 설정
 export VIDEO_WIDTH=${VIDEO_WIDTH:-1280}
@@ -93,7 +93,7 @@ RTSP_URLS=(
     "rtsp://root:root@192.168.1.102:554/cam0_0"
     "rtsp://root:root@192.168.1.103:554/cam0_0"
     "rtsp://root:root@192.168.1.104:554/cam0_0"
-    "rtsp://10.2.10.158:1114/live"
+    "rtsp://10.2.10.158:1115/live"
     "rtsp://10.2.10.158:1116/live"
 )
 

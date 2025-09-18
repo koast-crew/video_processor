@@ -171,8 +171,12 @@ class EnhancedFFmpegVideoWriter:
         """리소스 해제"""
         if self.process:
             try:
-                self.process.stdin.close()
-                self.process.wait(timeout=10)
+                # 입력 스트림 닫고 충분히 플러시 대기 (컨테이너 moov 쓰기 보장)
+                try:
+                    self.process.stdin.close()
+                except Exception:
+                    pass
+                self.process.wait(timeout=30)
                 logger.info(f"FFmpeg 프로세스 종료됨: {self.filepath} ({self.frame_count} 프레임)")
             except subprocess.TimeoutExpired:
                 logger.warning(f"FFmpeg 프로세스 강제 종료: {self.filepath}")
@@ -254,7 +258,15 @@ class VideoWriterManager:
         timestamp_now = datetime.now()
         # 최초 시작 시 앵커 설정
         if self.anchor_wall_time is None:
-            self.anchor_wall_time = timestamp_now
+            # 외부 동기 시작 epoch가 있으면 이를 앵커로 사용
+            try:
+                sync_epoch = os.getenv('SYNC_START_EPOCH')
+                if sync_epoch and str(sync_epoch).isdigit():
+                    self.anchor_wall_time = datetime.fromtimestamp(int(sync_epoch))
+                else:
+                    self.anchor_wall_time = timestamp_now
+            except Exception:
+                self.anchor_wall_time = timestamp_now
             self.anchor_monotonic = time.monotonic()
             self.segment_index = 0
             self.next_boundary_monotonic = self.anchor_monotonic + self.max_duration
@@ -448,18 +460,38 @@ class VideoWriterManager:
         except Exception as e:
             logger.warning(f"비동기 finalize 대기 중 오류: {e}")
         
-        # 남은 임시 파일들 정리
+        # 남은 임시 파일 처리: 삭제 대신 최종명으로 안전 rename 시도
         try:
             for filename in os.listdir(self.config.temp_output_path):
-                if filename.startswith('temp_') and filename.endswith('.mp4'):
+                if filename.startswith('temp_') and (filename.endswith('.mp4') or filename.endswith('.srt')):
                     temp_path = os.path.join(self.config.temp_output_path, filename)
+                    final_name = filename[len('temp_'):]
+                    final_path = os.path.join(self.config.temp_output_path, final_name)
+                    # 이미 최종 파일이 있으면 temp_는 제거(중복)
+                    if os.path.exists(final_path):
+                        try:
+                            os.remove(temp_path)
+                            logger.debug(f"중복 임시 파일 제거: {filename}")
+                        except Exception as e:
+                            logger.warning(f"임시 파일 제거 실패: {filename} - {e}")
+                        continue
+                    # 파일 크기 안정화 간단 확인(2회 체크)
                     try:
-                        os.remove(temp_path)
-                        logger.debug(f"임시 파일 정리: {filename}")
+                        size1 = os.path.getsize(temp_path)
+                        time.sleep(1)
+                        size2 = os.path.getsize(temp_path)
+                        if size1 != size2:
+                            logger.warning(f"임시 파일 크기 변동 감지, rename 보류: {filename}")
+                            continue
+                    except Exception:
+                        pass
+                    try:
+                        os.rename(temp_path, final_path)
+                        logger.info(f"임시 파일 최종명으로 변경: {final_name}")
                     except Exception as e:
-                        logger.warning(f"임시 파일 정리 실패: {filename} - {e}")
+                        logger.warning(f"임시 파일 rename 실패: {filename} -> {final_name} - {e}")
         except Exception as e:
-            logger.error(f"임시 파일 정리 중 오류: {e}")
+            logger.error(f"임시 파일 처리 중 오류: {e}")
         
         logger.info("비디오 라이터 정리 완료")
     

@@ -26,6 +26,17 @@ except ImportError:
 	sys.exit(1)
 
 from config import get_env_value
+
+# 환경변수 로드: DOTENV_PATH 우선 (세션별 env 격리), 없으면 기본 .env
+try:
+    from dotenv import load_dotenv
+    _dotenv_path = os.getenv('DOTENV_PATH')
+    if _dotenv_path and os.path.exists(_dotenv_path):
+        load_dotenv(dotenv_path=_dotenv_path, override=True)
+    else:
+        load_dotenv()
+except Exception:
+    pass
 from api_client import BlackboxAPIClient, create_camera_video_data
 
 # 날짜별 파일명으로 기록하는 핸들러 (YYYYMMDD 단위로 파일 교체)
@@ -83,12 +94,22 @@ rotation_enabled = os.getenv('LOG_ROTATION', 'on').lower() in ('1','true','yes',
 rotate_interval = int(os.getenv('LOG_ROTATE_INTERVAL', '1'))  # 일 단위
 backup_count = int(os.getenv('LOG_BACKUP_COUNT', '7'))
 
-# 로그 디렉터리: LOG_DIR만 사용 (없으면 파일 로깅 비활성화)
+# 로그 디렉터리: 우선순위 LOG_DIR > FINAL_OUTPUT_PATH/logs > ./logs
 log_dir_env = os.getenv('LOG_DIR')
 logs_dir_path = None
 if log_dir_env and str(log_dir_env).strip():
-	logs_dir_path = Path(log_dir_env)
-	logs_dir_path.mkdir(parents=True, exist_ok=True)
+    logs_dir_path = Path(log_dir_env)
+else:
+    final_output_base = os.getenv('FINAL_OUTPUT_PATH')
+    if final_output_base and str(final_output_base).strip():
+        logs_dir_path = Path(final_output_base) / 'logs'
+    else:
+        # 스크립트 디렉터리 기준 logs 폴더
+        logs_dir_path = Path(__file__).parent / 'logs'
+try:
+    logs_dir_path.mkdir(parents=True, exist_ok=True)
+except Exception:
+    pass
 
 # 로그 파일 prefix: LOG_FILE의 이름만 사용(경로는 무시)
 log_file_env = os.getenv('LOG_FILE', 'file_mover.log')
@@ -232,6 +253,24 @@ class VideoFileMoveHandler(FileSystemEventHandler):
 		self.processing_files.add(str(file_path))
 		
 		try:
+			# 크기 안정화 확인(최대 5초)
+			try:
+				prev_size = -1
+				same_count = 0
+				for _ in range(5):
+					if not file_path.exists():
+						break
+					sz = file_path.stat().st_size
+					if sz == prev_size and sz > 0:
+						same_count += 1
+						if same_count >= 2:
+							break
+					else:
+						same_count = 0
+						prev_size = sz
+					time.sleep(1)
+			except Exception:
+				pass
 			logger.info(f"📄 완료된 파일 발견: {file_path.name}")
 			
 			# 파일명에서 시간 정보 추출
