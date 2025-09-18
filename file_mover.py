@@ -9,10 +9,11 @@ import os
 import sys
 import shutil
 import logging
+import time
 import signal
 import time
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 import threading
@@ -46,7 +47,7 @@ class DailyDateFileHandler(logging.Handler):
 		super().__init__(level)
 		self.logs_dir = Path(logs_dir)
 		self.prefix = prefix
-		self.current_date = datetime.now().strftime('%Y%m%d')
+		self.current_date = datetime.now(timezone.utc).strftime('%Y%m%d')
 		self._inner = None
 		self._open_for_today()
 	
@@ -71,7 +72,7 @@ class DailyDateFileHandler(logging.Handler):
 			self._inner.setFormatter(self.formatter)
 	
 	def emit(self, record: logging.LogRecord) -> None:
-		new_date = datetime.now().strftime('%Y%m%d')
+		new_date = datetime.now(timezone.utc).strftime('%Y%m%d')
 		if new_date != self.current_date:
 			self.current_date = new_date
 			self._open_for_today()
@@ -131,11 +132,14 @@ if log_to_file and logs_dir_path is not None:
 	file_handler.setLevel(getattr(logging, file_log_level_env, logging.INFO))
 	handlers.append(file_handler)
 
-logging.basicConfig(
-	level=logging.DEBUG,  # 루트는 넉넉히 두고 개별 핸들러로 제어
-	format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-	handlers=handlers
-)
+class UTCFormatter(logging.Formatter):
+    converter = time.gmtime
+
+fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+logging.basicConfig(level=logging.DEBUG, handlers=handlers)
+for h in handlers:
+    h.setFormatter(UTCFormatter(fmt))
 logger = logging.getLogger(__name__)
 
 def _is_interesting_file(path: str) -> bool:
@@ -194,7 +198,7 @@ class VideoFileMoveHandler(FileSystemEventHandler):
 			file_name = final_file_path.name
 			start_dt, stream_num = self._parse_start_time_and_stream(file_name)
 			if start_dt is None:
-				start_dt = datetime.now()
+				start_dt = datetime.now(timezone.utc)
 			end_dt = start_dt + timedelta(seconds=self.video_segment_duration)
 			video_data = create_camera_video_data(
 				file_path=str(final_file_path),

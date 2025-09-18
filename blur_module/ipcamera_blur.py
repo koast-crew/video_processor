@@ -1,6 +1,6 @@
 import cv2
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import argparse
 import numpy as np
@@ -127,7 +127,7 @@ class HeadBlurrer:
         if not self.enable_face_counting:
             return
             
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
         
         record = {
             'timestamp': timestamp,
@@ -172,7 +172,7 @@ class HeadBlurrer:
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
             
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
         
         # CSV 파일로 상세 기록 저장
         csv_filename = f"{filename_prefix}_details_{timestamp}.csv"
@@ -189,7 +189,7 @@ class HeadBlurrer:
         json_path = os.path.join(output_dir, json_filename)
         
         summary_data = {
-            'generation_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'generation_time': datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
             'total_records': len(self.detection_records),
             'camera_statistics': self.stats,
             'overall_stats': {

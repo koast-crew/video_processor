@@ -13,7 +13,7 @@ import logging
 import subprocess
 import numpy as np
 import cv2
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from threading import Thread
 
@@ -83,7 +83,7 @@ class EnhancedFFmpegVideoWriter:
             # stdout은 버리고(stderr는 파일로 기록) stdin은 라인버퍼링으로 유지
             log_dir = self._resolve_log_dir()
             # 날짜 및 스트림 번호를 포함한 stderr 로그 파일명
-            date_str = datetime.now().strftime('%Y%m%d')
+            date_str = datetime.now(timezone.utc).strftime('%Y%m%d')
             y, m, d = date_str[:4], date_str[4:6], date_str[6:8]
             dated_dir = os.path.join(log_dir, y, m, d)
             os.makedirs(dated_dir, exist_ok=True)
@@ -255,14 +255,14 @@ class VideoWriterManager:
     
     def start_new_video(self):
         """새 영상 파일 시작 (선오픈/비동기 롤오버)"""
-        timestamp_now = datetime.now()
+        timestamp_now = datetime.now(timezone.utc)
         # 최초 시작 시 앵커 설정
         if self.anchor_wall_time is None:
             # 외부 동기 시작 epoch가 있으면 이를 앵커로 사용
             try:
                 sync_epoch = os.getenv('SYNC_START_EPOCH')
                 if sync_epoch and str(sync_epoch).isdigit():
-                    self.anchor_wall_time = datetime.fromtimestamp(int(sync_epoch))
+                    self.anchor_wall_time = datetime.fromtimestamp(int(sync_epoch), timezone.utc)
                 else:
                     self.anchor_wall_time = timestamp_now
             except Exception:
@@ -393,7 +393,7 @@ class VideoWriterManager:
                     # 세그먼트 완료 알림 (자막 등 동기화 목적)
                     for listener in list(self.segment_listeners):
                         try:
-                            listener.on_segment_finalizing(temp_path, final_path, start_time_dt or datetime.now(), frame_count)
+                            listener.on_segment_finalizing(temp_path, final_path, start_time_dt or datetime.now(timezone.utc), frame_count)
                         except Exception as e:
                             logger.warning(f"Segment listener on_segment_finalizing 오류: {e}")
                 else:
@@ -422,7 +422,7 @@ class VideoWriterManager:
                 # 세그먼트 완료 알림 (자막 등 동기화 목적)
                 for listener in list(self.segment_listeners):
                     try:
-                        listener.on_segment_finalizing(self.current_temp_file, self.current_final_file, self.current_segment_planned_start or datetime.now(), self.frame_count)
+                        listener.on_segment_finalizing(self.current_temp_file, self.current_final_file, self.current_segment_planned_start or datetime.now(timezone.utc), self.frame_count)
                     except Exception as e:
                         logger.warning(f"Segment listener on_segment_finalizing 오류: {e}")
             else:

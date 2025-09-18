@@ -13,10 +13,11 @@ import os
 import sys
 import signal
 import logging
+import time
 from pathlib import Path
 from dotenv import load_dotenv
 from logging.handlers import TimedRotatingFileHandler
-from datetime import datetime
+from datetime import datetime, timezone
 from syslog import syslog, openlog, closelog, LOG_INFO, LOG_WARNING, LOG_ERR, LOG_PID, LOG_DAEMON
 
 # DOTENV_PATH가 지정된 경우 해당 파일을 우선 로드하여 각 세션별 환경 격리
@@ -38,7 +39,7 @@ class DailyDateFileHandler(logging.Handler):
 		super().__init__(level)
 		self.logs_dir = Path(logs_dir)
 		self.prefix = prefix
-		self.current_date = datetime.now().strftime('%Y%m%d')
+		self.current_date = datetime.now(timezone.utc).strftime('%Y%m%d')
 		self._inner = None
 		self._open_for_today()
 	
@@ -63,7 +64,7 @@ class DailyDateFileHandler(logging.Handler):
 			self._inner.setFormatter(self.formatter)
 	
 	def emit(self, record: logging.LogRecord) -> None:
-		new_date = datetime.now().strftime('%Y%m%d')
+		new_date = datetime.now(timezone.utc).strftime('%Y%m%d')
 		if new_date != self.current_date:
 			self.current_date = new_date
 			self._open_for_today()
@@ -120,11 +121,16 @@ def setup_logging():
 	file_handler.setLevel(getattr(logging, file_log_level, logging.INFO))
 	handlers.append(file_handler)
 	
-	logging.basicConfig(
-		level=logging.DEBUG,  # 루트는 넉넉히 두고 개별 핸들러로 제어
-		format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-		handlers=handlers
-	)
+	# UTC 포매터 정의
+	class UTCFormatter(logging.Formatter):
+		converter = time.gmtime
+
+	fmt = '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+
+	logging.basicConfig(level=logging.DEBUG, handlers=handlers)
+	# 각 핸들러에 UTC 포매터 적용
+	for h in handlers:
+		h.setFormatter(UTCFormatter(fmt))
 	
 	return logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ import logging
 import cv2
 import numpy as np
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 try:
 	from .config import RTSPConfig
@@ -34,7 +34,7 @@ class RtspPublisher:
 
 	def _resolve_log_file(self) -> str:
 		log_dir = os.getenv('LOG_DIR') or os.path.join(self.config.final_output_path or '.', 'logs')
-		date_str = datetime.now().strftime('%Y%m%d')
+		date_str = datetime.now(timezone.utc).strftime('%Y%m%d')
 		y, m, d = date_str[:4], date_str[4:6], date_str[6:8]
 		path = os.path.join(log_dir, y, m, d)
 		os.makedirs(path, exist_ok=True)

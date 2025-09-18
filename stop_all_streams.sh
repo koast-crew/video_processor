@@ -34,9 +34,9 @@ else
     pkill -TERM -f "python -u run.py" 2>/dev/null || true
     pkill -TERM -f "uv run python -u run.py" 2>/dev/null || true
     # 최대 10초 대기(FFmpeg finalize 및 파일 rename 시간)
-    for sec in $(seq 1 10); do
+    for sec in $(seq 1 5); do
         if pgrep -f "run.py" >/dev/null 2>&1; then
-            echo "   ⏳ finalize 대기 ${sec}/10초..."
+            echo "   ⏳ finalize 대기 ${sec}/5초..."
             sleep 1
         else
             break
@@ -285,7 +285,7 @@ else
     echo "💡 로그 파일 관리:"
     echo "   전체 로그 확인: tail -f rtsp_stream*.log"
     echo "   로그 파일 삭제: rm -f rtsp_stream*.log"
-    echo "   로그 파일 압축: tar -czf logs_$(date +%Y%m%d_%H%M%S).tar.gz rtsp_stream*.log" 
+    echo "   로그 파일 압축: tar -czf logs_$(date -u +%Y%m%d_%H%M%S).tar.gz rtsp_stream*.log" 
 fi
 
 # ---------------------- MediaMTX 인스턴스 종료 ----------------------

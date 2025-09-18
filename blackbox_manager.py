@@ -177,7 +177,7 @@ class BlackboxManager:
             vessel_name=self.config.overlay_config.vessel_name,
             latitude=self.config.overlay_config.latitude,
             longitude=self.config.overlay_config.longitude,
-            timestamp=datetime.now()
+            timestamp=datetime.now(timezone.utc)
         )
         
         # API 연결 실패 시에는 녹화 허용 (안전한 기본값)

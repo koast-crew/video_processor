@@ -155,10 +155,10 @@ else
     if ! [[ "$wait_sec" =~ ^[0-9]+$ ]]; then
         wait_sec="$default_wait"
     fi
-    SYNC_START_EPOCH=$(( $(date +%s) + wait_sec ))
+    SYNC_START_EPOCH=$(( $(date -u +%s) + wait_sec ))
 fi
 export SYNC_START_EPOCH
-readable_start="$(date -d "@${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null || date -r "${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null || echo "${SYNC_START_EPOCH}")"
+readable_start="$(date -u -d "@${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null || date -u -r "${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null || echo "${SYNC_START_EPOCH}")"
 echo "⏱️  모든 스트림 동기 시작 예정 시각: ${readable_start} (epoch: ${SYNC_START_EPOCH})"
 echo "🎬 ${NUM_STREAMS}개 스트림 실행 시작..."
 
@@ -184,7 +184,7 @@ fi
 for i in $(seq 1 ${NUM_STREAMS}); do
     session_name="${BASE_SESSION_NAME}${i}"
     env_file="$ENV_BASE_DIR/.env.stream${i}"
-    log_file="rtsp_stream${i}_$(date +%Y%m%d).log"
+    log_file="rtsp_stream${i}_$(date -u +%Y%m%d).log"
     
     echo ""
     echo "🔄 스트림 ${i} 시작 중..."
@@ -210,7 +210,7 @@ for i in $(seq 1 ${NUM_STREAMS}); do
         export PY_SCRIPT="$PYTHON_SCRIPT"
         export SCRIPT_DIR="$SCRIPT_DIR"
         # 미리 날짜 포함 로그 파일명을 계산하여 전달
-        export STREAM_LOG_FILE="rtsp_stream${i}_$(date +%Y%m%d).log"
+        export STREAM_LOG_FILE="rtsp_stream${i}_$(date -u +%Y%m%d).log"
         
         # screen 세션 생성 및 실행
         # 임시 실행 스크립트 생성
@@ -238,8 +238,8 @@ else
 fi
 mkdir -p "$LOG_DIR"
 # 날짜별 로그 파일 설정 및 헤더 기록
-current_date=$(date +%Y%m%d)
-date_dir=$(date +%Y/%m/%d)
+current_date=$(date -u +%Y%m%d)
+date_dir=$(date -u +%Y/%m/%d)
 mkdir -p "$LOG_DIR/$date_dir"
 log_file="$LOG_DIR/$date_dir/rtsp_stream${STREAM_INDEX}_${current_date}.log"
 echo "스트림 ${STREAM_INDEX} 시작: $(date)" >> "$log_file"
@@ -248,10 +248,10 @@ echo "========================================" >> "$log_file"
 
 ## 동기 시작 시각까지 대기
 if [ -n "$SYNC_START_EPOCH" ]; then
-    now_epoch=$(date +%s)
+    now_epoch=$(date -u +%s)
     if [ "$SYNC_START_EPOCH" -gt "$now_epoch" ]; then
         remain=$(( SYNC_START_EPOCH - now_epoch ))
-        echo "동기 시작 대기 중... 목표: $(date -d "@${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null || date -r "${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null) (약 ${remain}s)" | tee -a "$log_file"
+        echo "동기 시작 대기 중... 목표(UTC): $(date -u -d "@${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null || date -u -r "${SYNC_START_EPOCH}" "+%F %T" 2>/dev/null) (약 ${remain}s)" | tee -a "$log_file"
         sleep "$remain"
     fi
 fi
@@ -259,10 +259,10 @@ fi
 # 주의: 각 세션은 자신의 env 파일을 DOTENV_PATH로 직접 로드하므로 .env 복사 불필요
 # 날짜 변경 시 자동 회전하며 로그 기록 (LOG_DIR은 셸 내부에서만 사용)
 uv run python -u "$PY_SCRIPT" 2>&1 | while IFS= read -r line; do
-    new_date=$(date +%Y%m%d)
+    new_date=$(date -u +%Y%m%d)
     if [ "$new_date" != "$current_date" ]; then
         current_date="$new_date"
-        date_dir=$(date +%Y/%m/%d)
+        date_dir=$(date -u +%Y/%m/%d)
         mkdir -p "$LOG_DIR/$date_dir"
         log_file="$LOG_DIR/$date_dir/rtsp_stream${STREAM_INDEX}_${current_date}.log"
         echo "----- 날짜 변경: $(date) -----" | tee -a "$log_file"
@@ -328,8 +328,8 @@ else
 fi
 mkdir -p "$LOG_DIR"
 # 날짜별 로그 파일 설정 및 헤더 기록
-current_date=$(date +%Y%m%d)
-date_dir=$(date +%Y/%m/%d)
+current_date=$(date -u +%Y%m%d)
+date_dir=$(date -u +%Y/%m/%d)
 mkdir -p "$LOG_DIR/$date_dir"
 log_prefix="file_mover_"
 log_file="$LOG_DIR/$date_dir/${log_prefix}${current_date}.log"
@@ -339,10 +339,10 @@ echo "========================================" >> "$log_file"
 # 파일 이동기 폴링 주기 단축을 위해 환경변수로 조정 가능 (기본 1초)
 export FILE_MOVER_GRACE_SECONDS=${FILE_MOVER_GRACE_SECONDS:-15}
 DOTENV_PATH="$FM_ENV_REF" uv run python -u file_mover.py 2>&1 | while IFS= read -r line; do
-    new_date=$(date +%Y%m%d)
+    new_date=$(date -u +%Y%m%d)
     if [ "$new_date" != "$current_date" ]; then
         current_date="$new_date"
-        date_dir=$(date +%Y/%m/%d)
+        date_dir=$(date -u +%Y/%m/%d)
         mkdir -p "$LOG_DIR/$date_dir"
         log_file="$LOG_DIR/$date_dir/${log_prefix}${current_date}.log"
         echo "----- 날짜 변경: $(date) -----" | tee -a "$log_file"

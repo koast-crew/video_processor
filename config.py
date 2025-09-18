@@ -8,7 +8,7 @@ import os
 import re
 from dataclasses import dataclass
 from typing import Optional, Tuple, Dict, List, Any
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 try:
@@ -385,7 +385,7 @@ class RTSPConfig:
 def generate_filename(overlay_config: OverlayConfig, timestamp: datetime = None) -> str:
     """파일명 생성: {배이름}_{스트림번호}_{YYMMDD}_{HHMMSS}.mp4"""
     if timestamp is None:
-        timestamp = datetime.now()
+        timestamp = datetime.now(timezone.utc)
     
     date_str = timestamp.strftime("%y%m%d")    # YYMMDD
     time_str = timestamp.strftime("%H%M%S")    # HHMMSS

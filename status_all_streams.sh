@@ -45,7 +45,7 @@ fi
 # 현재 시간
 echo "📊 ${NUM_STREAMS}개 RTSP 스트림 상태 확인"
 echo "=========================="
-echo "확인 시간: $(date)"
+echo "확인 시간(UTC): $(date -u)"
 echo ""
 
 # Screen 세션 상태
@@ -92,8 +92,8 @@ for i in $(seq 1 ${NUM_STREAMS}); do
         rtsp_output_url="rtsp://${LOCAL_IP}:${port}/live"
     fi
 
-    current_date=$(date +%Y%m%d)
-    date_dir=$(date +%Y/%m/%d)
+    current_date=$(date -u +%Y%m%d)
+    date_dir=$(date -u +%Y/%m/%d)
     log_file="$LOGS_DIR/$date_dir/rtsp_stream${i}_${current_date}.log"
     
     echo ""
@@ -194,7 +194,7 @@ echo "🔧 빠른 액션:"
 echo "   전체 시작: ./start_all_streams.sh"
 echo "   전체 중지: ./stop_all_streams.sh"
 echo "   특정 세션 접속: screen -r rtsp_stream1 (1~${NUM_STREAMS})"
-echo "   실시간 로그: tail -f "$LOGS_DIR/$(date +%Y/%m/%d)/rtsp_stream1_$(date +%Y%m%d).log" (1~${NUM_STREAMS})"
+echo "   실시간 로그: tail -f "$LOGS_DIR/$(date -u +%Y/%m/%d)/rtsp_stream1_$(date -u +%Y%m%d).log" (1~${NUM_STREAMS})"
 
 # 파일 이동 서비스 제어
 running_mover=$(screen -list | grep "${FILE_MOVER_SESSION}" | wc -l)
@@ -202,5 +202,5 @@ if [ "$running_mover" -gt 0 ]; then
     echo ""
     echo "📦 파일 이동 서비스 제어:"
     echo "   접속: screen -r $FILE_MOVER_SESSION"
-    echo "   로그: tail -f "$LOGS_DIR/$(date +%Y/%m/%d)/file_mover_$(date +%Y%m%d).log""
+    echo "   로그: tail -f "$LOGS_DIR/$(date -u +%Y/%m/%d)/file_mover_$(date -u +%Y%m%d).log""
 fi 
