@@ -50,7 +50,6 @@ else
     stopped_count=0
     for i in {1..6}; do
         session_name="${BASE_SESSION_NAME}${i}"
-        
         if screen -list | grep -q "$session_name"; then
             echo "   중지 중: $session_name"
             screen -S "$session_name" -X quit 2>/dev/null
@@ -176,9 +175,9 @@ else
             [ -f "$env_file" ] || env_file="$ALT_ENV_DIR/.env.stream${i}"
             if [ -f "$env_file" ]; then
                 temp_output_path=$(get_env_val TEMP_OUTPUT_PATH "$env_file"); [ -n "$temp_output_path" ] || temp_output_path="./output/temp/"
-                final_output_path=$(get_env_val FINAL_OUTPUT_PATH "$env_file"); [ -n "$final_output_path" ] || final_output_path="/mnt/raid5"
+                final_output_path=$(get_env_val FINAL_OUTPUT_PATH "$env_file"); [ -n "$final_output_path" ] || final_output_path="/mnt/nas/cam"
             else
-                temp_output_path="./output/temp/"; final_output_path="/mnt/raid5"
+                temp_output_path="./output/temp/"; final_output_path="/mnt/nas/cam"
             fi
             shopt -s nullglob
             for f in "$temp_output_path"/*.mp4 "$temp_output_path"/*.srt; do
