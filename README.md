@@ -40,6 +40,11 @@ sudo mv mediamtx /usr/local/bin/
 # 6) 상태 확인 및 중지
 ./status_all_streams.sh
 ./stop_all_streams.sh
+
+# 또는 Python 버전 사용 (권장)
+./stop_all_streams_python.sh
+# 또는 직접 실행
+python3 stop_streams.py --help
 ```
 
 - 내부 실행은 `uv run python`으로 수행되므로, 별도 가상환경 활성화 없이도 실행됩니다.
@@ -64,6 +69,30 @@ sudo mv mediamtx /usr/local/bin/
 - `start_all_streams.sh`: 각 `.env.streamN`을 기반으로 스트림을 개별 screen 세션으로 실행하고, 파일 이동 서비스 세션도 실행. 내부 호출은 `uv run python` 사용. 스트림 개수는 고정값이 아닌 NUM_STREAMS/`.env.stream*`에 따라 동적으로 결정됩니다.
 - `status_all_streams.sh`: 실행 중 세션/로그 현황 요약 출력(날짜 디렉토리 경로 반영).
 - `stop_all_streams.sh`: 실행 중 세션 종료, 임시 파일 정리.
+
+### Python 스크립트 (새로운 관리 도구)
+- `stop_streams.py`: 기존 `stop_all_streams.sh`를 파이썬으로 리팩토링한 버전. 더 깔끔하고 유지보수하기 쉬운 구조로 개선.
+- `stop_all_streams_python.sh`: Python 버전을 호출하는 간단한 래퍼 스크립트.
+
+#### 🐍 Python 버전의 장점
+- **모듈화된 구조**: 각 기능별로 클래스와 함수로 분리되어 유지보수가 쉬움
+- **에러 처리**: 더 정교한 예외 처리와 로깅
+- **설정 관리**: 프로필 기반 설정을 더 체계적으로 관리
+- **확장성**: 새로운 기능 추가가 쉬움
+- **디버깅**: Python 디버거 사용 가능
+- **테스트**: 단위 테스트 작성 가능
+
+#### 사용법
+```bash
+# 기본 사용 (기존 스크립트와 동일)
+./stop_all_streams_python.sh
+
+# 직접 실행 (옵션 지정 가능)
+python3 stop_streams.py --profile sim --num-streams 6
+
+# 도움말
+python3 stop_streams.py --help
+```
 
 ## ⚙️ generate_env.sh가 설정하는 환경변수
 
