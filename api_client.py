@@ -8,7 +8,7 @@ import requests
 import json
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 import os
 
@@ -33,10 +33,18 @@ class BlackboxData:
 	recorded_date: Optional[datetime] = None
 
 @dataclass
+class CameraDevice:
+	"""카메라 디바이스 정보 클래스"""
+	device_name: str
+	device_key: str
+	view_order: int
+
+@dataclass
 class CameraVideoData:
 	"""카메라 영상 데이터 클래스"""
 	camera_id: int
 	camera_name: str
+	camera_key: str  # 카메라 키 추가
 	vessel_id: int
 	vessel_name: str
 	gear_code: str
@@ -53,6 +61,10 @@ class CameraVideoData:
 class BlackboxAPIClient:
 	"""블랙박스 API 클라이언트"""
 	
+	# 클래스 레벨 카메라 정보 캐시 (시작 시 한 번만 로드)
+	_camera_devices: Optional[List[CameraDevice]] = None
+	_camera_devices_loaded: bool = False
+	
 	def __init__(self, base_url: str = "http://localhost", timeout: int = 5):
 		self.base_url = base_url.rstrip('/')
 		self.timeout = timeout
@@ -65,6 +77,78 @@ class BlackboxAPIClient:
 		})
 		
 		logger.info(f"BlackboxAPIClient 초기화: {self.base_url}")
+		
+		# 처음 초기화 시 카메라 디바이스 정보 로드
+		if not BlackboxAPIClient._camera_devices_loaded:
+			self._load_camera_devices()
+			BlackboxAPIClient._camera_devices_loaded = True
+	
+	def _load_camera_devices(self):
+		"""카메라 디바이스 정보를 API에서 로드 (시작 시 한 번만 호출)"""
+		url = f"{self.base_url}/api/devices?deviceType=CAMERA"
+		
+		try:
+			logger.info(f"카메라 디바이스 정보 로드 중: {url}")
+			response = self.session.get(url, timeout=self.timeout)
+			response.raise_for_status()
+			
+			data = response.json()
+			payload = data.get('payload', [])
+			
+			if not isinstance(payload, list):
+				logger.warning(f"카메라 디바이스 응답이 리스트가 아닙니다: {type(payload)}")
+				BlackboxAPIClient._camera_devices = None
+				return
+			
+			# deviceName, deviceKey, viewOrder 추출하여 정렬
+			camera_list = []
+			for device in payload:
+				device_name = device.get('deviceName')
+				device_key = device.get('deviceKey')
+				view_order = device.get('viewOrder', 999)
+				
+				if device_name and device_key:
+					camera_list.append(CameraDevice(
+						device_name=device_name,
+						device_key=device_key,
+						view_order=view_order
+					))
+			
+			# viewOrder로 정렬
+			camera_list.sort(key=lambda x: x.view_order)
+			
+			BlackboxAPIClient._camera_devices = camera_list
+			logger.info(f"카메라 디바이스 {len(camera_list)}개 로드 완료")
+			for idx, cam in enumerate(camera_list, 1):
+				logger.info(f"  [{idx}] {cam.device_name} (key: {cam.device_key}, order: {cam.view_order})")
+			
+		except requests.exceptions.Timeout:
+			logger.error(f"카메라 디바이스 API 타임아웃: {url}")
+			BlackboxAPIClient._camera_devices = None
+		except requests.exceptions.ConnectionError:
+			logger.error(f"카메라 디바이스 API 연결 실패: {url}")
+			BlackboxAPIClient._camera_devices = None
+		except requests.exceptions.HTTPError as e:
+			body = e.response.text if getattr(e, 'response', None) is not None else 'No response body'
+			status = e.response.status_code if getattr(e, 'response', None) is not None else 'Unknown'
+			logger.error(f"카메라 디바이스 API HTTP 오류: {status} - {body}")
+			BlackboxAPIClient._camera_devices = None
+		except Exception as e:
+			logger.error(f"카메라 디바이스 로드 예상치 못한 오류: {e}")
+			BlackboxAPIClient._camera_devices = None
+	
+	def get_camera_device(self, stream_number: int) -> Optional[CameraDevice]:
+		"""스트림 번호에 해당하는 카메라 디바이스 정보 반환 (1-based)"""
+		if BlackboxAPIClient._camera_devices is None or len(BlackboxAPIClient._camera_devices) == 0:
+			return None
+		
+		# 스트림 번호는 1-based, 리스트 인덱스는 0-based
+		idx = stream_number - 1
+		if 0 <= idx < len(BlackboxAPIClient._camera_devices):
+			return BlackboxAPIClient._camera_devices[idx]
+		
+		# 범위를 벗어나면 마지막 카메라 반환
+		return BlackboxAPIClient._camera_devices[-1]
 	
 	def get_latest_gps(self) -> Optional[BlackboxData]:
 		"""최신 블랙박스 GPS 정보 조회"""
@@ -139,6 +223,7 @@ class BlackboxAPIClient:
 			payload = {
 				"cameraId": video_data.camera_id,
 				"cameraName": video_data.camera_name,
+				"cameraKey": video_data.camera_key,  # 카메라 키 추가
 				"vesselId": video_data.vessel_id,
 				"vesselName": video_data.vessel_name,
 				"gearCode": video_data.gear_code,
@@ -193,15 +278,14 @@ def create_camera_video_data(
 	record_start_time: datetime,
 	record_end_time: datetime,
 	blackbox_data: Optional[BlackboxData] = None,
-	stream_number: Optional[int] = None
+	stream_number: Optional[int] = None,
+	api_client: Optional[BlackboxAPIClient] = None
 ) -> CameraVideoData:
 	"""CameraVideoData 객체 생성 헬퍼 함수
 	
-	카메라 ID/Name은 환경변수로 스트림별 설정 가능:
-	- CAMERA_ID_S{N}, CAMERA_NAME_S{N} (예: CAMERA_ID_S1, CAMERA_NAME_S1)
-	- 없음이면 CAMERA_ID, CAMERA_NAME 사용
-	- 모두 없으면 기본값: id=스트림번호, name=f"camera{stream_num}"
-	(필요에 맞게 ENV를 설정해 사용하세요)
+	카메라 정보 우선순위:
+	1. API에서 로드한 카메라 디바이스 정보 (deviceName, deviceKey)
+	2. API 실패 시 기본값 (스트림 번호: 1, 2, 3, 4, 5, 6)
 	"""
 	
 	# 파일 정보 추출
@@ -216,16 +300,25 @@ def create_camera_video_data(
 	except ValueError:
 		stream_num = 1
 	
-	# ENV에서 카메라 ID/이름 읽기
-	env_cam_id = os.getenv(f'CAMERA_ID_S{stream_num}') or os.getenv('CAMERA_ID')
-	env_cam_name = os.getenv(f'CAMERA_NAME_S{stream_num}') or os.getenv('CAMERA_NAME')
+	# 카메라 정보 결정
+	camera_name = None
+	camera_key = None
 	
-	# 기본값: id=스트림 번호, name=camera{stream_num}
-	try:
-		camera_id = int(env_cam_id) if env_cam_id is not None and env_cam_id.strip() != '' else stream_num
-	except ValueError:
-		camera_id = stream_num
-	camera_name = env_cam_name if env_cam_name and env_cam_name.strip() != '' else f"camera{stream_num}"
+	# 1. API에서 카메라 디바이스 정보 가져오기 시도
+	if api_client is not None:
+		camera_device = api_client.get_camera_device(stream_num)
+		if camera_device is not None:
+			camera_name = camera_device.device_name
+			camera_key = camera_device.device_key
+			logger.debug(f"스트림 {stream_num}: API 카메라 정보 사용 - {camera_name} ({camera_key})")
+	
+	# 2. API 실패 시 기본값 사용
+	if camera_name is None or camera_key is None:
+		camera_name = str(stream_num)
+		camera_key = str(stream_num)
+		logger.debug(f"스트림 {stream_num}: 기본 카메라 정보 사용 - {camera_name} ({camera_key})")
+	
+	camera_id = stream_num
 	
 	# 블랙박스 데이터가 있으면 사용, 없으면 기본값
 	if blackbox_data:
@@ -244,6 +337,7 @@ def create_camera_video_data(
 	return CameraVideoData(
 		camera_id=camera_id,
 		camera_name=camera_name,
+		camera_key=camera_key,
 		vessel_id=vessel_id,
 		vessel_name=vessel_name,
 		gear_code=gear_code,
