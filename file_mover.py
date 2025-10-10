@@ -206,13 +206,14 @@ class VideoFileMoveHandler(FileSystemEventHandler):
 				record_start_time=start_dt,
 				record_end_time=end_dt,
 				blackbox_data=blackbox_data,
-				stream_number=stream_num
+				stream_number=stream_num,
+				api_client=client  # API 클라이언트 전달하여 카메라 정보 사용
 			)
 			ok = client.send_camera_video_info(video_data)
 			if ok:
 				logger.info(f"📤 API 전송 성공: {final_file_path}")
 			else:
-				logger.error(f"�� API 전송 실패: {final_file_path}")
+				logger.error(f"📤 API 전송 실패: {final_file_path}")
 		except Exception as e:
 			logger.error(f"API 전송 중 오류: {e}")
 	
