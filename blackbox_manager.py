@@ -123,10 +123,10 @@ class BlackboxManager:
     
     def _update_overlay_data(self, blackbox_data: BlackboxData):
         """오버레이 데이터 업데이트"""
-        # null 값 처리: 기본값 사용
+        # null 값 처리: 기본값 사용 (기본값이 None이면 None 유지)
         vessel_name = blackbox_data.vessel_name or self.config.overlay_config.vessel_name
-        latitude = blackbox_data.latitude or self.config.overlay_config.latitude
-        longitude = blackbox_data.longitude or self.config.overlay_config.longitude
+        latitude = blackbox_data.latitude if blackbox_data.latitude is not None else self.config.overlay_config.latitude
+        longitude = blackbox_data.longitude if blackbox_data.longitude is not None else self.config.overlay_config.longitude
         
         # 시간 처리: 블랙박스 시간이 없으면 서버 시간 사용
         if blackbox_data.recorded_date:
@@ -175,8 +175,8 @@ class BlackboxManager:
         """API 연결 실패 시 기본값 사용"""
         self.latest_overlay_data = OverlayData(
             vessel_name=self.config.overlay_config.vessel_name,
-            latitude=self.config.overlay_config.latitude,
-            longitude=self.config.overlay_config.longitude,
+            latitude=self.config.overlay_config.latitude,  # None일 수 있음
+            longitude=self.config.overlay_config.longitude,  # None일 수 있음
             timestamp=datetime.now(timezone.utc)
         )
         

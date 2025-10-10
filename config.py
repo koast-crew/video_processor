@@ -49,8 +49,8 @@ class OverlayConfig:
     """오버레이 표시 정보 (60분법 GPS)"""
     vessel_name: str = "DEFAULT_VESSEL"
     stream_number: int = 1
-    latitude: float = 37.5665            # 십진법으로 저장 (서울 기본값)
-    longitude: float = 126.9780          # 십진법으로 저장 (서울 기본값) 
+    latitude: float = 0            # 십진법으로 저장 (서울 기본값)
+    longitude: float = 0          # 십진법으로 저장 (서울 기본값) 
     use_server_time: bool = True
     
     # TODO: Redis 연동 시 실시간 데이터 수신
@@ -299,8 +299,8 @@ class RTSPConfig:
             self.overlay_config = OverlayConfig(
                 vessel_name=get_env_value('VESSEL_NAME', 'DEFAULT_VESSEL'),
                 stream_number=get_env_value('STREAM_NUMBER', 1, int),
-                latitude=get_env_value('DEFAULT_LATITUDE', 37.5665, float),
-                longitude=get_env_value('DEFAULT_LONGITUDE', 126.9780, float)
+                latitude=get_env_value('DEFAULT_LATITUDE', None, float),
+                longitude=get_env_value('DEFAULT_LONGITUDE', None, float)
             )
         
         if self.ffmpeg_config is None:
