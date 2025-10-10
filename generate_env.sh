@@ -8,7 +8,7 @@ echo "📝 RTSP 스트림용 .env 파일 자동 생성"
 echo "========================================"
 
 # 기본 설정
-BASE_IP="10.2.10.127"
+BASE_IP="192.168.10.20"
 START_PORT=1111
 END_PORT=1116
 VESSEL_NAME=${VESSEL_NAME:-vesselTest}
@@ -85,7 +85,7 @@ export FFMPEG_RTSP_FLAGS=${FFMPEG_RTSP_FLAGS:-}
 #   비워두거나 부족하면 BASE_IP/START_PORT 규칙으로 자동 채움
 # =============================================================================
 # 스트림 개수 설정  
-NUM_STREAMS=${NUM_STREAMS:-6}
+NUM_STREAMS=${NUM_STREAMS:-4}
 
 # 아래 URL을 원하는 URL로 교체하세요
 RTSP_URLS=(
@@ -93,8 +93,7 @@ RTSP_URLS=(
     "rtsp://root:root@192.168.1.102:554/cam0_0"
     "rtsp://root:root@192.168.1.103:554/cam0_0"
     "rtsp://root:root@192.168.1.104:554/cam0_0"
-    "rtsp://10.2.10.158:1115/live"
-    "rtsp://10.2.10.158:1116/live"
+   # "rtsp://root:root@192.168.1.107:554/cam0_0"
 )
 
 # 정수 유효성 체크
