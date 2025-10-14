@@ -50,6 +50,53 @@ python3 stop_streams.py --help
 - 내부 실행은 `uv run python`으로 수행되므로, 별도 가상환경 활성화 없이도 실행됩니다.
 - ultralytics는 필수입니다. 모델 파일(.pt) 경로는 `HEAD_BLUR_MODEL_PATH` 환경변수로 지정하세요. (미지정 시 `blur_module/models/best_re_final.pt`를 찾습니다.)
 
+## 🔍 시스템 검증 (필수)
+
+프로그램 실행 전에 시스템이 올바르게 설정되었는지 확인하는 것을 권장합니다.
+
+### 자동 검증 스크립트
+
+```bash
+# 모든 .env.streamN 파일 자동 검증 (콘솔에는 요약만 출력)
+uv run python verify_system.py
+
+# 콘솔에 상세 로그도 출력
+uv run python verify_system.py --verbose
+
+# 환경변수만 검증
+uv run python verify_system.py --env-only
+
+# API만 검증
+uv run python verify_system.py --api-only
+
+# 결과를 JSON 파일로 저장
+uv run python verify_system.py --export verification_result.json
+```
+
+**참고:** 
+- 현재 디렉터리의 모든 `.env.stream*` 파일을 자동으로 찾아서 각각 검증합니다
+- **콘솔에는 요약만 출력되고, 상세 검증 내용은 `verification_detail_YYYYMMDD_HHMMSS.log` 파일에 저장됩니다**
+- `--verbose` 옵션으로 콘솔에도 상세 로그를 출력할 수 있습니다
+
+**검증 항목:**
+1. ✅ API 호출해서 선박 정보, 카메라 정보를 사용하는지 확인
+2. ✅ API 호출 실패 시 사용값 확인 (폴백 메커니즘)
+3. ✅ 환경변수 설정값 확인 (배 이름, 조업 판단 기준 등)
+4. ✅ 카메라 영상 저장 시 device API를 호출한 deviceName, deviceKey 값을 사용하는지 확인
+5. ✅ 영상/자막/로그 저장 여부 및 블랙박스 정보 잘 받아오는지 확인
+
+**상세 검증 가이드:** [VERIFICATION.md](VERIFICATION.md) 참조
+
+### 수동 API 테스트
+
+```bash
+# 블랙박스 API 테스트 (1회 조회)
+python3 test_blackbox_api.py --base-url http://localhost --debug
+
+# 주기적 조회 (2초마다)
+python3 test_blackbox_api.py --base-url http://localhost --watch 2
+```
+
 ## 📦 구성 파일 개요
 
 ### Python 모듈

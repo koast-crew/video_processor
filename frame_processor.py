@@ -96,8 +96,8 @@ class OverlayRenderer:
 		else:
 			lat_dms, lon_dms = format_gps_coordinates(latitude, longitude)
 		
-		# 시간 형식 (초단위까지 포함)
-		time_str = timestamp.strftime("%Y-%m-%d %H:%M:%S")
+		# 시간 형식 (초단위까지 포함, UTC 표기)
+		time_str = timestamp.strftime("%Y-%m-%d %H:%M:%S UTC")
 
 		# 컴팩트한 형식
 		overlay_text = (
@@ -123,7 +123,8 @@ class OverlayRenderer:
 		
 		# 두께는 정수이면서 최소 1을 보장
 		font_thickness_int = max(1, int(round(1 * scale_factor)))
-		outline_thickness_int = max(1, int(round(1 * scale_factor)))
+		# 외곽선은 본문보다 두껍게 설정하여 가독성 향상
+		outline_thickness_int = max(2, font_thickness_int + 1)
 		
 		return {
 			"font_scale": 0.5 * scale_factor,
@@ -158,8 +159,8 @@ class OverlayRenderer:
 		font_scale = font_settings["font_scale"]
 		font_thickness = font_settings["font_thickness"]
 		outline_thickness = font_settings["outline_thickness"]
-		font_color = (0, 0, 0)  # 검은색
-		outline_color = (0, 0, 0)     # 검은색 외곽선
+		font_color = (0, 0, 0)        # 검정 본문
+		outline_color = (255, 255, 255)     # 흰색 외곽선
 		
 		# 텍스트 크기 측정
 		(text_width, text_height), baseline = cv2.getTextSize(

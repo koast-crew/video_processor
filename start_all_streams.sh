@@ -338,6 +338,8 @@ echo "========================================" >> "$log_file"
 # 날짜 변경 시 자동 회전하며 로그 기록 (LOG_DIR은 셸 내부에서만 사용)
 # 파일 이동기 폴링 주기 단축을 위해 환경변수로 조정 가능 (기본 1초)
 export FILE_MOVER_GRACE_SECONDS=${FILE_MOVER_GRACE_SECONDS:-15}
+# Python의 파일 로깅을 비활성화하여 Shell이 단일 로깅을 담당하도록 함
+export PY_LOG_TO_FILE=off
 DOTENV_PATH="$FM_ENV_REF" uv run python -u file_mover.py 2>&1 | while IFS= read -r line; do
     new_date=$(date -u +%Y%m%d)
     if [ "$new_date" != "$current_date" ]; then

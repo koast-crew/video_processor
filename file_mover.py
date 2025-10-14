@@ -290,13 +290,11 @@ class VideoFileMoveHandler(FileSystemEventHandler):
 			
 			# 파일 이동
 			final_file_path = final_dir / file_path.name
-			
 			logger.debug(f"📦 파일 이동 중...")
 			logger.debug(f"  원본: {file_path}")
 			logger.debug(f"  대상: {final_file_path}")
-			
-			# 파일 이동 (shutil.move는 원자적 작업)
 			shutil.move(str(file_path), str(final_file_path))
+
 			# 파일 권한 설정 (선택사항)
 			os.chmod(final_file_path, 0o644)
 			logger.info(f"✅ 파일 이동 완료: {final_file_path}")
