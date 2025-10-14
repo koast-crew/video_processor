@@ -38,6 +38,8 @@ class CameraDevice:
 	device_name: str
 	device_key: str
 	view_order: int
+	vessel_id: Optional[int] = None
+	vessel_name: Optional[str] = None
 
 @dataclass
 class CameraVideoData:
@@ -100,18 +102,22 @@ class BlackboxAPIClient:
 				BlackboxAPIClient._camera_devices = None
 				return
 			
-			# deviceName, deviceKey, viewOrder 추출하여 정렬
+			# deviceName, deviceKey, viewOrder, vesselId, vesselName 추출하여 정렬
 			camera_list = []
 			for device in payload:
 				device_name = device.get('deviceName')
 				device_key = device.get('deviceKey')
 				view_order = device.get('viewOrder', 999)
+				vessel_id = device.get('vesselId')
+				vessel_name = device.get('vesselName')
 				
 				if device_name and device_key:
 					camera_list.append(CameraDevice(
 						device_name=device_name,
 						device_key=device_key,
-						view_order=view_order
+						view_order=view_order,
+						vessel_id=vessel_id,
+						vessel_name=vessel_name
 					))
 			
 			# viewOrder로 정렬
@@ -120,7 +126,11 @@ class BlackboxAPIClient:
 			BlackboxAPIClient._camera_devices = camera_list
 			logger.info(f"카메라 디바이스 {len(camera_list)}개 로드 완료")
 			for idx, cam in enumerate(camera_list, 1):
-				logger.info(f"  [{idx}] {cam.device_name} (key: {cam.device_key}, order: {cam.view_order})")
+				logger.info(f"  [{idx}] cameraName: {cam.device_name}")
+				logger.info(f"      cameraKey: {cam.device_key}")
+				logger.info(f"      vesselId: {cam.vessel_id}")
+				logger.info(f"      vesselName: {cam.vessel_name}")
+				logger.info(f"      viewOrder: {cam.view_order}")
 			
 		except requests.exceptions.Timeout:
 			logger.error(f"카메라 디바이스 API 타임아웃: {url}")
@@ -286,6 +296,11 @@ def create_camera_video_data(
 	카메라 정보 우선순위:
 	1. API에서 로드한 카메라 디바이스 정보 (deviceName, deviceKey)
 	2. API 실패 시 기본값 (스트림 번호: 1, 2, 3, 4, 5, 6)
+	
+	선박(vessel) 정보 우선순위:
+	1. API 카메라 디바이스에서 로드한 선박 정보 (vesselId, vesselName)
+	2. blackbox_data의 선박 정보
+	3. 기본값 (vesselId: 1, vesselName: "vesselTest")
 	"""
 	
 	# 파일 정보 추출
@@ -305,6 +320,7 @@ def create_camera_video_data(
 	camera_key = None
 	
 	# 1. API에서 카메라 디바이스 정보 가져오기 시도
+	camera_device = None
 	if api_client is not None:
 		camera_device = api_client.get_camera_device(stream_num)
 		if camera_device is not None:
@@ -320,16 +336,26 @@ def create_camera_video_data(
 	
 	camera_id = stream_num
 	
-	# 블랙박스 데이터가 있으면 사용, 없으면 기본값
-	if blackbox_data:
+	# vessel 정보 우선순위: API 카메라 디바이스 정보 -> blackbox_data -> 기본값
+	if camera_device is not None and camera_device.vessel_id is not None:
+		vessel_id = camera_device.vessel_id
+		vessel_name = camera_device.vessel_name or "vesselTest"
+		logger.debug(f"스트림 {stream_num}: API vessel 정보 사용 - {vessel_name} ({vessel_id})")
+	elif blackbox_data:
 		vessel_id = blackbox_data.vessel_id or 1
 		vessel_name = blackbox_data.vessel_name or "vesselTest"
+		logger.debug(f"스트림 {stream_num}: Blackbox vessel 정보 사용 - {vessel_name} ({vessel_id})")
+	else:
+		vessel_id = 1
+		vessel_name = "vesselTest"
+		logger.debug(f"스트림 {stream_num}: 기본 vessel 정보 사용 - {vessel_name} ({vessel_id})")
+	
+	# gear 정보는 blackbox_data에서 가져오거나 기본값 사용
+	if blackbox_data:
 		gear_code = blackbox_data.gear_code or "PS"
 		gear_name = blackbox_data.gear_name or "Purse Seine"
 		gear_name_ko = blackbox_data.gear_name_ko or "선망"
 	else:
-		vessel_id = 1
-		vessel_name = "vesselTest"
 		gear_code = "PS"
 		gear_name = "Purse Seine"
 		gear_name_ko = "선망"

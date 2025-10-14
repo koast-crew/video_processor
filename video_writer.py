@@ -173,14 +173,22 @@ class EnhancedFFmpegVideoWriter:
             try:
                 # 입력 스트림 닫고 충분히 플러시 대기 (컨테이너 moov 쓰기 보장)
                 try:
+                    self.process.stdin.flush()  # 명시적 flush 추가
                     self.process.stdin.close()
                 except Exception:
                     pass
+                
+                # 프로세스 종료 대기
                 self.process.wait(timeout=30)
                 logger.info(f"FFmpeg 프로세스 종료됨: {self.filepath} ({self.frame_count} 프레임)")
+                
+                # 추가 대기: OS가 파일을 완전히 닫을 시간 제공
+                time.sleep(0.5)
+                
             except subprocess.TimeoutExpired:
-                logger.warning(f"FFmpeg 프로세스 강제 종료: {self.filepath}")
+                logger.warning(f"FFmpeg 프로세스 타임아웃, 강제 종료: {self.filepath}")
                 self.process.kill()
+                self.process.wait()  # kill 후에도 대기
             except Exception as e:
                 logger.error(f"FFmpeg 프로세스 종료 오류: {e}")
             finally:
@@ -387,7 +395,38 @@ class VideoWriterManager:
             try:
                 if writer:
                     writer.release()
+                    # FFmpeg 종료 후 파일 핸들 완전 해제 대기
+                    time.sleep(1)
+                
                 if temp_path and os.path.exists(temp_path):
+                    # 파일 크기 안정화 확인 (3회 연속 동일)
+                    prev_size = -1
+                    stable_count = 0
+                    for _ in range(5):
+                        try:
+                            curr_size = os.path.getsize(temp_path)
+                            if curr_size == prev_size and curr_size > 0:
+                                stable_count += 1
+                                if stable_count >= 2:
+                                    break
+                            else:
+                                stable_count = 0
+                                prev_size = curr_size
+                            time.sleep(0.5)
+                        except Exception:
+                            break
+                    
+                    # 파일 명시적 sync - 읽기+쓰기 모드로 열어야 함
+                    try:
+                        with open(temp_path, 'r+b') as f:
+                            os.fsync(f.fileno())
+                        # 파일 시스템 전체 sync (확실한 보장)
+                        os.sync()
+                        # 추가 대기
+                        time.sleep(0.5)
+                    except Exception as e:
+                        logger.debug(f"파일 sync 실패 (무시): {e}")
+                    
                     os.rename(temp_path, final_path)
                     self._log_segment_summary(final_path, frame_count, start_time_dt)
                     # 세그먼트 완료 알림 (자막 등 동기화 목적)
@@ -414,8 +453,39 @@ class VideoWriterManager:
             # FFmpeg writer 종료
             self.current_writer.release()
             
+            # FFmpeg 종료 후 파일 핸들 완전 해제 대기
+            time.sleep(1)
+            
             # 임시 파일을 최종 파일명으로 변경
             if os.path.exists(self.current_temp_file):
+                # 파일 크기 안정화 확인 (2회 연속 동일)
+                prev_size = -1
+                stable_count = 0
+                for _ in range(5):
+                    try:
+                        curr_size = os.path.getsize(self.current_temp_file)
+                        if curr_size == prev_size and curr_size > 0:
+                            stable_count += 1
+                            if stable_count >= 2:
+                                break
+                        else:
+                            stable_count = 0
+                            prev_size = curr_size
+                        time.sleep(0.5)
+                    except Exception:
+                        break
+                
+                # 파일 명시적 sync - 읽기+쓰기 모드로 열어야 함
+                try:
+                    with open(self.current_temp_file, 'r+b') as f:
+                        os.fsync(f.fileno())
+                    # 파일 시스템 전체 sync (확실한 보장)
+                    os.sync()
+                    # 추가 대기
+                    time.sleep(0.5)
+                except Exception as e:
+                    logger.debug(f"파일 sync 실패 (무시): {e}")
+                
                 os.rename(self.current_temp_file, self.current_final_file)
                 # 일관된 요약 로그 출력 (프레임 기반 길이)
                 self._log_segment_summary(self.current_final_file, self.frame_count, self.current_segment_planned_start)
