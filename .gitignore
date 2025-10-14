@@ -44,14 +44,6 @@ dist/
 # Systemd unit local copies
 *.service
 
-# Model/weights (keep directory, ignore large binaries)
-blur_module/models/*
-!blur_module/models/.gitkeep
-*.engine
-*.plan
-*.onnx
-*.pt
-
 # Shell temp scripts
 .tmp_run_*
 
