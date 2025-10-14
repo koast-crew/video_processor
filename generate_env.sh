@@ -11,7 +11,7 @@ echo "========================================"
 BASE_IP="192.168.10.20"
 START_PORT=1111
 END_PORT=1116
-VESSEL_NAME=${VESSEL_NAME:-vesselTest}
+VESSEL_NAME=${VESSEL_NAME:-vesselNoAPI}
 
 # 비트레이트 설정
 TARGET_BITRATE=${TARGET_BITRATE:-2M}
