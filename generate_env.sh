@@ -83,7 +83,7 @@ export FFMPEG_RTSP_FLAGS=${FFMPEG_RTSP_FLAGS:-}
 #   비워두거나 부족하면 BASE_IP/START_PORT 규칙으로 자동 채움
 # =============================================================================
 # 스트림 개수 설정  
-NUM_STREAMS=${NUM_STREAMS:-4}
+NUM_STREAMS=${NUM_STREAMS:-6}
 
 # 아래 URL을 원하는 URL로 교체하세요
 RTSP_URLS=(
@@ -91,7 +91,9 @@ RTSP_URLS=(
     "rtsp://root:root@192.168.1.102:554/cam0_0"
     "rtsp://root:root@192.168.1.103:554/cam0_0"
     "rtsp://root:root@192.168.1.104:554/cam0_0"
-   # "rtsp://root:root@192.168.1.107:554/cam0_0"
+    "rtsp://10.2.10.158:1115/live"
+    "rtsp://10.2.10.158:1116/live"
+
 )
 
 # 정수 유효성 체크
@@ -114,6 +116,19 @@ for i in $(seq 1 ${NUM_STREAMS}); do
     RTSP_URLS_NORMALIZED[$i]="$url"
     echo "   → 스트림 ${i}: ${RTSP_URLS_NORMALIZED[$i]}"
 done
+
+# 기존 스트림 .env 파일 정리
+echo ""
+echo "🧹 기존 .env.stream* 파일 정리..."
+shopt -s nullglob
+old_env_files=(.env.stream*)
+if [ ${#old_env_files[@]} -gt 0 ]; then
+    rm -f .env.stream*
+    echo "   제거됨: ${old_env_files[*]}"
+else
+    echo "   제거 대상 없음"
+fi
+shopt -u nullglob
 
 # 스트림용 .env 파일 생성
 for i in $(seq 1 ${NUM_STREAMS}); do
