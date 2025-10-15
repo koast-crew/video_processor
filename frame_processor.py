@@ -76,23 +76,23 @@ class OverlayRenderer:
 			if overlay_data:
 				# 블랙박스 데이터 사용 (시간 제외)
 				vessel_name = overlay_data.vessel_name
-				latitude = overlay_data.latitude if overlay_data.latitude is not None else "unknown"
-				longitude = overlay_data.longitude if overlay_data.longitude is not None else "unknown"
+				latitude = overlay_data.latitude if overlay_data.latitude is not None else "---"
+				longitude = overlay_data.longitude if overlay_data.longitude is not None else "---"
 			else:
 				# 블랙박스 데이터 없으면 기본값 사용
 				vessel_name = self.config.overlay_config.vessel_name
-				latitude = "unknown"
-				longitude = "unknown"
+				latitude = "---"
+				longitude = "---"
 		else:
 			# 블랙박스 매니저 없으면 기본값 사용
 			vessel_name = self.config.overlay_config.vessel_name
-			latitude = "unknown"
-			longitude = "unknown"
+			latitude = "---"
+			longitude = "---"
 		
 		# GPS 좌표를 60분법으로 변환
-		if latitude == "unknown" or longitude == "unknown":
-			lat_dms = "unknown"
-			lon_dms = "unknown"
+		if latitude == "---" or longitude == "---":
+			lat_dms = "---"
+			lon_dms = "---"
 		else:
 			lat_dms, lon_dms = format_gps_coordinates(latitude, longitude)
 		
