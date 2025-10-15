@@ -7,7 +7,7 @@
 ```bash
 # 0) 필수 시스템 패키지
 sudo apt-get update
-sudo apt-get install -y ffmpeg build-essential cmake ninja-build git git-lfs python3-dev screen jq
+sudo apt-get install -y ffmpeg build-essential cmake ninja-build git git-lfs python3-dev screen jq 
 sudo apt install nvidia-driver-570
 
 # 1) 블러 모델 다운로드
@@ -16,6 +16,7 @@ git lfs install
 git lfs pull
 
 # 2) uv 설치 
+sudo apt install curl
 curl -LsSf https://astral.sh/uv/install.sh | sh
 source $HOME/.local/bin/env
 
