@@ -7,8 +7,18 @@
 ```bash
 # 0) 필수 시스템 패키지
 sudo apt-get update
-sudo apt-get install -y ffmpeg build-essential cmake ninja-build git git-lfs python3-dev screen jq 
+sudo apt-get install -y ffmpeg git-lfs screen
 sudo apt install nvidia-driver-570
+
+# nvidia-smi 실행하여 gpu 잘 작동하는지 확인. 에러 발생할 경우 다음 명령어를 실행
+# 1) nouveau 블랙리스트 등록
+echo -e "blacklist nouveau\noptions nouveau modeset=0" | \
+  sudo tee /etc/modprobe.d/blacklist-nouveau.conf
+# 2) initramfs 갱신
+sudo update-initramfs -u
+# 3) 재부팅
+sudo reboot
+
 
 # 1) 블러 모델 다운로드
 cd /home/koast-user/oper/video_processor
