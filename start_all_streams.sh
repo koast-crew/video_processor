@@ -115,7 +115,7 @@ if ! command -v mediamtx >/dev/null 2>&1; then
     exit 1
 fi
 
-for i in {0..5}; do
+for i in $(seq 0 $((NUM_STREAMS - 1))); do
     rtsp_port=$((1111 + i))
     rtmp_port=$((1911 + i))
     rtp_port=$((8000 + i * 2))
