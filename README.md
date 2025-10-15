@@ -7,13 +7,17 @@
 ```bash
 # 0) 필수 시스템 패키지
 sudo apt-get update
-sudo apt-get install -y ffmpeg build-essential cmake ninja-build git python3-dev screen jq
+sudo apt-get install -y ffmpeg build-essential cmake ninja-build git git-lfs python3-dev screen jq
 sudo apt install nvidia-driver-570
 
-# 1) uv 설치 (1회)
+# 1) 블러 모델 다운로드
+git lfs install
+git lfs pull
+
+# 2) uv 설치 
 curl -LsSf https://astral.sh/uv/install.sh | sh
 
-# 2) 파이썬 의존성 설치 (requirements.txt 기반 정확히 동기화)
+# 3) 파이썬 의존성 설치 
 cd /home/koast-user/oper/video_processor
 uv venv
 uv pip sync --index-strategy unsafe-best-match requirements.txt
@@ -21,23 +25,23 @@ uv pip install "https://pypi.nvidia.com/tensorrt-cu12/tensorrt-cu12-10.0.1.tar.g
 # 주의: torch/torchvision은 CUDA 버전에 따라 설치 변형이 있을 수 있습니다.
 # 현재 requirements.txt는 cu121 기반입니다.
 
-# 3) mediaMTX 설치
+# 4) mediaMTX 설치
 wget https://github.com/bluenviron/mediamtx/releases/download/v1.9.1/mediamtx_v1.9.1_linux_amd64.tar.gz
 tar -xzf mediamtx_v1.9.1_linux_amd64.tar.gz
 chmod +x mediamtx
 sudo mv mediamtx /usr/local/bin/
 
-# 4) 환경파일(.env.streamN) 자동 생성
+# 5) 환경파일(.env.streamN) 자동 생성
 ./generate_env.sh
 # 스트림 개수는 고정이 아닙니다. 다음 우선순위로 결정됩니다:
 # - generate_env.sh에서 설정한 NUM_STREAMS(기본 6)
 # - 실행 시 NUM_STREAMS=N ./start_all_streams.sh 로 덮어쓰기 가능
 # - 현재 디렉터리의 .env.stream* 파일 중 최대 인덱스도 자동 감지
 
-# 5) 전체 스트림 + 파일 이동 서비스 실행 (MediaMTX 사전 설치 필요)
+# 6) 전체 스트림 + 파일 이동 서비스 실행 (MediaMTX 사전 설치 필요)
 ./start_all_streams.sh
 
-# 6) 상태 확인 및 중지
+# 7) 상태 확인 및 중지
 ./status_all_streams.sh
 ./stop_all_streams.sh
 
