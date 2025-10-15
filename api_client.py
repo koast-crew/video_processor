@@ -78,6 +78,9 @@ class BlackboxAPIClient:
 			'Accept': 'application/json'
 		})
 		
+		# 연결 상태 (반복 오류 로그 방지용)
+		self._last_connection_ok = None
+		
 		logger.info(f"BlackboxAPIClient 초기화: {self.base_url}")
 		
 		# 처음 초기화 시 카메라 디바이스 정보 로드
@@ -207,21 +210,38 @@ class BlackboxAPIClient:
 			# 	   f"vessel={blackbox_data.vessel_name}, "
 			# 	   f"position=({blackbox_data.latitude}, {blackbox_data.longitude})")
 			
+			# 연결 복구 전이 로그 (이전 상태가 끊김이었을 때만 1회 출력)
+			if self._last_connection_ok is False:
+				logger.info(f"블랙박스 API 연결 복구: {self.base_url}")
+			self._last_connection_ok = True
+			
 			return blackbox_data
 			
 		except requests.exceptions.Timeout:
-			logger.error(f"블랙박스 API 타임아웃: {url}")
+			# 끊김 전이 시에만 에러 로그 출력
+			if self._last_connection_ok is not False:
+				logger.error(f"블랙박스 API 타임아웃: {url}")
+			self._last_connection_ok = False
 			return None
 		except requests.exceptions.ConnectionError:
-			logger.error(f"블랙박스 API 연결 실패: {url}")
+			# 끊김 전이 시에만 에러 로그 출력
+			if self._last_connection_ok is not False:
+				logger.error(f"블랙박스 API 연결 실패: {url}")
+			self._last_connection_ok = False
 			return None
 		except requests.exceptions.HTTPError as e:
 			body = e.response.text if getattr(e, 'response', None) is not None else 'No response body'
 			status = e.response.status_code if getattr(e, 'response', None) is not None else 'Unknown'
-			logger.error(f"블랙박스 API HTTP 오류: {status} - {body}")
+			# HTTP 오류 역시 끊김 전이 시에만 에러 로그 1회 출력
+			if self._last_connection_ok is not False:
+				logger.error(f"블랙박스 API HTTP 오류: {status} - {body}")
+			self._last_connection_ok = False
 			return None
 		except Exception as e:
-			logger.error(f"블랙박스 API 예상치 못한 오류: {e}")
+			# 기타 오류도 반복 로그를 피하기 위해 전이 시에만 출력
+			if self._last_connection_ok is not False:
+				logger.error(f"블랙박스 API 예상치 못한 오류: {e}")
+			self._last_connection_ok = False
 			return None
 	
 	def send_camera_video_info(self, video_data: CameraVideoData) -> bool:

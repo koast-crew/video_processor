@@ -17,6 +17,7 @@ git lfs pull
 
 # 2) uv 설치 
 curl -LsSf https://astral.sh/uv/install.sh | sh
+source $HOME/.local/bin/env
 
 # 3) 파이썬 의존성 설치 
 uv venv
@@ -30,26 +31,76 @@ wget https://github.com/bluenviron/mediamtx/releases/download/v1.9.1/mediamtx_v1
 tar -xzf mediamtx_v1.9.1_linux_amd64.tar.gz
 chmod +x mediamtx
 sudo mv mediamtx /usr/local/bin/
+rm mediamtx_v1.9.1_linux_amd64.tar.gz 
 
 # 5) 환경파일(.env.streamN) 자동 생성
 ./generate_env.sh
-# 스트림 개수는 고정이 아닙니다. 다음 우선순위로 결정됩니다:
-# - generate_env.sh에서 설정한 NUM_STREAMS(기본 6)
-# - 실행 시 NUM_STREAMS=N ./start_all_streams.sh 로 덮어쓰기 가능
-# - 현재 디렉터리의 .env.stream* 파일 중 최대 인덱스도 자동 감지
 
-# 6) 전체 스트림 + 파일 이동 서비스 실행 (MediaMTX 사전 설치 필요)
-./start_all_streams.sh
+# 6) 전체 스트림 + 파일 이동 서비스 실행 (사전에 systemctl 설정 필요)
+sudo systemctl start stream.service
 
 # 7) 상태 확인 및 중지
 ./status_all_streams.sh
 ./stop_all_streams.sh
 
-# 또는 Python 버전 사용 (권장)
-./stop_all_streams_python.sh
-# 또는 직접 실행
-python3 stop_streams.py --help
 ```
+
+## systemctl 설정
+
+```bash
+[Unit]
+Description=Start All Streams (keep running)
+Requires=rsyslog.service
+After=rsyslog.service
+Requires=remote-fs.target
+After=remote-fs.target
+
+[Service]
+User=koast-user
+Environment=PROFILE=camera
+Environment=HOME=/home/koast-user
+Environment=SHELL=/bin/bash
+Environment=PATH=/usr/local/bin:/usr/bin:/bin:/home/koast-user/.local/bin
+WorkingDirectory=/home/koast-user/oper/video_processor
+
+ExecStart=/home/koast-user/oper/video_processor/run_daemon.py
+ExecStop=/bin/bash -lc './stop_all_streams.sh'
+
+Restart=no
+
+KillMode=process
+#SendSIGKILL=no
+SyslogLevel=debug
+TimeoutStopSec=180
+
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```bash
+# 1. 기존 파일 백업 또는 삭제
+sudo mv /etc/systemd/system/stream.service ~/stream.service.bak 2>/dev/null || true
+
+# 2. 새 서비스 파일 작성
+sudo nano /etc/systemd/system/stream.service
+# → 위 내용 붙여넣고 저장
+
+# 3. systemd에 반영
+sudo systemctl daemon-reload
+
+# 4. 부팅 시 자동 실행 등록
+sudo systemctl enable stream.service
+
+# 5. 지금 실행
+sudo systemctl start stream.service
+
+# 6. 상태 확인
+sudo systemctl status stream.service
+```
+
 
 - 내부 실행은 `uv run python`으로 수행되므로, 별도 가상환경 활성화 없이도 실행됩니다.
 - ultralytics는 필수입니다. 모델 파일(.pt) 경로는 `HEAD_BLUR_MODEL_PATH` 환경변수로 지정하세요. (미지정 시 `blur_module/models/best_re_final.pt`를 찾습니다.)
