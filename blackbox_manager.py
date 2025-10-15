@@ -42,6 +42,8 @@ class BlackboxManager:
         self.running = False
         self.thread = None
         self.lock = threading.Lock()
+        # API 연결 상태 (전이 로깅용)
+        self._api_connected: Optional[bool] = None
         
         # 데이터 상태
         self.latest_blackbox_data: Optional[BlackboxData] = None
@@ -85,7 +87,6 @@ class BlackboxManager:
         
         consecutive_failures = 0
         max_consecutive_failures = 5
-        
         while self.running:
             try:
                 # 블랙박스 데이터 조회
@@ -93,6 +94,10 @@ class BlackboxManager:
                 
                 if blackbox_data:
                     consecutive_failures = 0  # 성공 시 실패 카운트 리셋
+                    # 연결 복구 전이 시 1회만 로그
+                    if self._api_connected is False:
+                        logger.info("블랙박스 API 연결 복구")
+                    self._api_connected = True
                     
                     with self.lock:
                         self.latest_blackbox_data = blackbox_data
@@ -104,11 +109,14 @@ class BlackboxManager:
                     #            f"vessel={blackbox_data.vessel_name}")
                 else:
                     consecutive_failures += 1
-                    logger.warning(f"블랙박스 데이터 수신 실패 ({consecutive_failures}/{max_consecutive_failures})")
-                    
+                    # 실패 카운트는 디버그로만 누적 표시 (스팸 방지)
+                    logger.debug(f"블랙박스 데이터 수신 실패 ({consecutive_failures}/{max_consecutive_failures})")
                     # 연속 실패가 임계값을 넘으면 기본값 사용
                     if consecutive_failures >= max_consecutive_failures:
-                        logger.error("블랙박스 API 연결 문제 감지, 기본값으로 전환")
+                        # 끊김 전이 시에만 에러 로그 1회 출력
+                        if self._api_connected is not False:
+                            logger.error("블랙박스 API 연결 문제 감지, 기본값으로 전환")
+                        self._api_connected = False
                         with self.lock:
                             self._use_default_values()
                 
@@ -189,7 +197,9 @@ class BlackboxManager:
                 except Exception as e:
                     logger.error(f"녹화 상태 콜백 실행 중 오류: {e}")
         
-        logger.info("기본값으로 오버레이 데이터 설정됨")
+        # 기본값 전환 로그는 최초 전환 시 1회만 출력 (연속 실패 동안 반복 출력 방지)
+        if self._api_connected is not False:
+            logger.info("기본값으로 오버레이 데이터 설정됨")
     
     def get_overlay_data(self) -> Optional[OverlayData]:
         """현재 오버레이 데이터 반환"""
