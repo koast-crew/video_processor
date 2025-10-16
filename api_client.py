@@ -11,6 +11,8 @@ from datetime import datetime
 from typing import Optional, Dict, Any, List
 from dataclasses import dataclass
 import os
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +68,9 @@ class BlackboxAPIClient:
 	# 클래스 레벨 카메라 정보 캐시 (시작 시 한 번만 로드)
 	_camera_devices: Optional[List[CameraDevice]] = None
 	_camera_devices_loaded: bool = False
+	# 재시도 스레드 상태 (클래스 레벨로 단일 스레드 보장)
+	_device_retry_thread: Optional[threading.Thread] = None
+	_device_retry_running: bool = False
 	
 	def __init__(self, base_url: str = "http://localhost", timeout: int = 5):
 		self.base_url = base_url.rstrip('/')
@@ -83,13 +88,15 @@ class BlackboxAPIClient:
 		
 		logger.info(f"BlackboxAPIClient 초기화: {self.base_url}")
 		
-		# 처음 초기화 시 카메라 디바이스 정보 로드
+		# 처음 초기화 시 카메라 디바이스 정보 로드 (실패 시 주기적 재시도)
 		if not BlackboxAPIClient._camera_devices_loaded:
-			self._load_camera_devices()
-			BlackboxAPIClient._camera_devices_loaded = True
+			if self._load_camera_devices():
+				BlackboxAPIClient._camera_devices_loaded = True
+			else:
+				self._start_camera_device_retry_thread()
 	
-	def _load_camera_devices(self):
-		"""카메라 디바이스 정보를 API에서 로드 (시작 시 한 번만 호출)"""
+	def _load_camera_devices(self) -> bool:
+		"""카메라 디바이스 정보를 API에서 로드. 성공 여부 반환"""
 		url = f"{self.base_url}/api/devices?deviceType=CAMERA"
 		
 		try:
@@ -103,7 +110,7 @@ class BlackboxAPIClient:
 			if not isinstance(payload, list):
 				logger.warning(f"카메라 디바이스 응답이 리스트가 아닙니다: {type(payload)}")
 				BlackboxAPIClient._camera_devices = None
-				return
+				return False
 			
 			# deviceName, deviceKey, viewOrder, vesselId, vesselName 추출하여 정렬
 			camera_list = []
@@ -134,25 +141,58 @@ class BlackboxAPIClient:
 				logger.info(f"      vesselId: {cam.vessel_id}")
 				logger.info(f"      vesselName: {cam.vessel_name}")
 				logger.info(f"      viewOrder: {cam.view_order}")
+			return True
 			
 		except requests.exceptions.Timeout:
 			logger.error(f"카메라 디바이스 API 타임아웃: {url}")
 			BlackboxAPIClient._camera_devices = None
+			return False
 		except requests.exceptions.ConnectionError:
 			logger.error(f"카메라 디바이스 API 연결 실패: {url}")
 			BlackboxAPIClient._camera_devices = None
+			return False
 		except requests.exceptions.HTTPError as e:
 			body = e.response.text if getattr(e, 'response', None) is not None else 'No response body'
 			status = e.response.status_code if getattr(e, 'response', None) is not None else 'Unknown'
 			logger.error(f"카메라 디바이스 API HTTP 오류: {status} - {body}")
 			BlackboxAPIClient._camera_devices = None
+			return False
 		except Exception as e:
 			logger.error(f"카메라 디바이스 로드 예상치 못한 오류: {e}")
 			BlackboxAPIClient._camera_devices = None
+			return False
+
+	def _start_camera_device_retry_thread(self):
+		"""카메라 디바이스 로드를 주기적으로 재시도하는 백그라운드 스레드 시작"""
+		if BlackboxAPIClient._device_retry_running:
+			return
+		interval_env = os.getenv('CAMERA_DEVICE_RETRY_INTERVAL', '10')
+		try:
+			interval = float(interval_env)
+		except ValueError:
+			interval = 10.0
+		
+		def _retry_loop():
+			logger.info(f"카메라 디바이스 재시도 스레드 시작 (interval={interval}s)")
+			try:
+				while not BlackboxAPIClient._camera_devices_loaded:
+					if self._load_camera_devices():
+						BlackboxAPIClient._camera_devices_loaded = True
+						break
+					time.sleep(interval)
+			finally:
+				BlackboxAPIClient._device_retry_running = False
+				logger.info("카메라 디바이스 재시도 스레드 종료")
+		
+		BlackboxAPIClient._device_retry_running = True
+		BlackboxAPIClient._device_retry_thread = threading.Thread(target=_retry_loop, daemon=True)
+		BlackboxAPIClient._device_retry_thread.start()
 	
 	def get_camera_device(self, stream_number: int) -> Optional[CameraDevice]:
 		"""스트림 번호에 해당하는 카메라 디바이스 정보 반환 (1-based)"""
 		if BlackboxAPIClient._camera_devices is None or len(BlackboxAPIClient._camera_devices) == 0:
+			# 캐시가 없으면 백그라운드 재시도 보장
+			self._start_camera_device_retry_thread()
 			return None
 		
 		# 스트림 번호는 1-based, 리스트 인덱스는 0-based
