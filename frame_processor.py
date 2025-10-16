@@ -67,9 +67,6 @@ class OverlayRenderer:
 	def create_single_line_overlay(self) -> str:
 		"""1줄 오버레이 텍스트 생성 (상단 좌측) - 블랙박스 데이터 반영"""
 		
-		# 현재 UTC 시간 가져오기
-		timestamp = datetime.now(timezone.utc)
-		
 		# 블랙박스 데이터에서 오버레이 정보 가져오기
 		if self.blackbox_manager:
 			overlay_data = self.blackbox_manager.get_overlay_data()
@@ -78,16 +75,20 @@ class OverlayRenderer:
 				vessel_name = overlay_data.vessel_name
 				latitude = overlay_data.latitude if overlay_data.latitude is not None else "---"
 				longitude = overlay_data.longitude if overlay_data.longitude is not None else "---"
+				# 시간은 블랙박스 기록 시각을 우선 사용, 없으면 서버 시간
+				timestamp = getattr(overlay_data, 'timestamp', None) or datetime.now(timezone.utc)
 			else:
 				# 블랙박스 데이터 없으면 기본값 사용
 				vessel_name = self.config.overlay_config.vessel_name
 				latitude = "---"
 				longitude = "---"
+				timestamp = datetime.now(timezone.utc)
 		else:
 			# 블랙박스 매니저 없으면 기본값 사용
 			vessel_name = self.config.overlay_config.vessel_name
 			latitude = "---"
 			longitude = "---"
+			timestamp = datetime.now(timezone.utc)
 		
 		# GPS 좌표를 60분법으로 변환
 		if latitude == "---" or longitude == "---":

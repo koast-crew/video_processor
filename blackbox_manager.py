@@ -130,9 +130,15 @@ class BlackboxManager:
         logger.info("블랙박스 데이터 모니터링 루프 종료")
     
     def _update_overlay_data(self, blackbox_data: BlackboxData):
-        """오버레이 데이터 업데이트"""
-        # null 값 처리: 기본값 사용 (기본값이 None이면 None 유지)
-        vessel_name = blackbox_data.vessel_name or self.config.overlay_config.vessel_name
+        """오버레이 데이터 업데이트
+        우선순위: 카메라 디바이스 vesselName -> 블랙박스 vessel_name -> 설정값
+        """
+        # 카메라 디바이스의 vesselName을 최우선으로 사용
+        camera_device = self.api_client.get_camera_device(self.config.overlay_config.stream_number)
+        camera_vessel_name = getattr(camera_device, 'vessel_name', None) if camera_device else None
+        vessel_name = camera_vessel_name or blackbox_data.vessel_name or self.config.overlay_config.vessel_name
+        
+        # 위치 정보는 블랙박스 값을 우선 사용, 없으면 설정값
         latitude = blackbox_data.latitude if blackbox_data.latitude is not None else self.config.overlay_config.latitude
         longitude = blackbox_data.longitude if blackbox_data.longitude is not None else self.config.overlay_config.longitude
         
@@ -180,9 +186,14 @@ class BlackboxManager:
                        f"(속도: {speed} knots)")
     
     def _use_default_values(self):
-        """API 연결 실패 시 기본값 사용"""
+        """API 연결 실패 시 기본값 사용
+        우선순위: 카메라 디바이스 vesselName -> 설정값
+        """
+        camera_device = self.api_client.get_camera_device(self.config.overlay_config.stream_number)
+        camera_vessel_name = getattr(camera_device, 'vessel_name', None) if camera_device else None
+        fallback_vessel_name = camera_vessel_name or self.config.overlay_config.vessel_name
         self.latest_overlay_data = OverlayData(
-            vessel_name=self.config.overlay_config.vessel_name,
+            vessel_name=fallback_vessel_name,
             latitude=self.config.overlay_config.latitude,  # None일 수 있음
             longitude=self.config.overlay_config.longitude,  # None일 수 있음
             timestamp=datetime.now(timezone.utc)
