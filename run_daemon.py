@@ -20,6 +20,7 @@ else:
 formatter = logging.Formatter('%(name)s[%(process)d]: %(levelname)s %(message)s')
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+_shutting_down = False
 
 # 스크립트 경로 설정
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,6 +29,10 @@ STOP_SCRIPT = os.path.join(SCRIPT_DIR, 'stop_all_streams.sh')
 
 def signal_handler(signum, frame):
     """SIGTERM, SIGINT 신호 처리기"""
+    global _shutting_down
+    if _shutting_down:
+        return
+    _shutting_down = True
     logger.info(f"신호 {signum} 수신. 데몬을 종료합니다.")
     
     try:
