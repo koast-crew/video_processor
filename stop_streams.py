@@ -375,89 +375,115 @@ class ProcessManager:
             return pid
         return None
     
-    @staticmethod
-    def kill_processes_by_pid(pids: List[int], grace_period: int = 5) -> bool:
-        """PID 목록으로 프로세스 그레이스풀 종료"""
-        if not pids:
-            logger.debug("종료할 프로세스가 없습니다")
-            return True
+    # @staticmethod
+    # def kill_processes_by_pid(pids: List[int], grace_period: int = 5) -> bool:
+    #     """PID 목록으로 프로세스 그레이스풀 종료"""
+    #     if not pids:
+    #         logger.debug("종료할 프로세스가 없습니다")
+    #         return True
             
-        logger.info(f"프로세스 {len(pids)}개에 SIGTERM 전송(그레이스풀 종료 유도)")
-        logger.debug(f"대상 PID: {pids}, 그레이스 기간: {grace_period}초")
+    #     logger.info(f"프로세스 {len(pids)}개에 SIGTERM 전송(그레이스풀 종료 유도)")
+    #     logger.debug(f"대상 PID: {pids}, 그레이스 기간: {grace_period}초")
         
-        # SIGTERM 전송
+    #     # SIGTERM 전송
+    #     for pid in pids:
+    #         try:
+    #             logger.debug(f"PID {pid}에 SIGTERM 전송")
+    #             os.kill(pid, signal.SIGTERM)
+    #         except ProcessLookupError:
+    #             logger.debug(f"PID {pid}가 이미 종료됨")
+    #         except PermissionError:
+    #             logger.warning(f"PID {pid}에 대한 권한이 없습니다")
+    #         except Exception as e:
+    #             logger.warning(f"PID {pid} 종료 신호 전송 실패: {e}")
+        
+    #     # 그레이스 기간 대기
+    #     logger.debug("그레이스 기간 대기 시작")
+    #     # for sec in range(1, grace_period + 1):
+    #     #     running_pids = []
+    #     #     for pid in pids:
+    #     #         try:
+    #     #             # 프로세스 존재 확인
+    #     #             os.kill(pid, 0)  # 신호 0은 프로세스 존재 확인용
+    #     #             running_pids.append(pid)
+    #     #             logger.debug(f"실행 중인 프로세스: PID {pid}")
+    #     #         except ProcessLookupError:
+    #     #             logger.debug(f"PID {pid}가 종료됨")
+    #     #         except Exception as e:
+    #     #             logger.debug(f"PID {pid} 확인 중 오류: {e}")
+            
+    #     #     if not running_pids:
+    #     #         logger.debug("모든 프로세스가 종료됨")
+    #     #         break
+            
+    #     #     logger.info(f"프로세스 종료 대기 중 {sec}/{grace_period}초... (남은 PID: {running_pids})")
+    #     #     time.sleep(1)
+        
+    #     # 강제 종료가 필요한 프로세스 확인
+    #     remaining_pids = []
+    #     for pid in pids:
+    #         try:
+    #             os.kill(pid, 0)
+    #             remaining_pids.append(pid)
+    #         except ProcessLookupError:
+    #             pass
+    #         except Exception:
+    #             pass
+        
+    #     if remaining_pids:
+    #         logger.warning(f"그레이스풀 종료 실패, 강제 종료 시도: PID {remaining_pids}")
+    #         for pid in remaining_pids:
+    #             try:
+    #                 logger.debug(f"PID {pid}에 SIGKILL 전송")
+    #                 os.kill(pid, signal.SIGKILL)
+    #             except ProcessLookupError:
+    #                 logger.debug(f"PID {pid}가 이미 종료됨")
+    #             except Exception as e:
+    #                 logger.error(f"PID {pid} 강제 종료 실패: {e}")
+        
+    #     # 최종 확인
+    #     final_running = []
+    #     for pid in pids:
+    #         try:
+    #             os.kill(pid, 0)
+    #             final_running.append(pid)
+    #         except ProcessLookupError:
+    #             pass
+    #         except Exception:
+    #             pass
+        
+    #     final_result = len(final_running) == 0
+    #     logger.debug(f"프로세스 종료 결과: {'성공' if final_result else '실패'}")
+    #     if final_running:
+    #         logger.error(f"여전히 실행 중인 프로세스: PID {final_running}")
+        
+    #     return final_result
+    @staticmethod
+    def kill_processes_by_pid(pids: List[int], grace_period: float = 0.1) -> bool:
+        """PID 목록을 즉시 종료(SIGTERM → 짧은 대기 → SIGKILL)"""
+        if not pids:
+            return True
+
+        logger.info(f"프로세스 {len(pids)}개에 SIGTERM 전송 후 {grace_period}초 대기 후 SIGKILL")
         for pid in pids:
             try:
-                logger.debug(f"PID {pid}에 SIGTERM 전송")
                 os.kill(pid, signal.SIGTERM)
             except ProcessLookupError:
-                logger.debug(f"PID {pid}가 이미 종료됨")
-            except PermissionError:
-                logger.warning(f"PID {pid}에 대한 권한이 없습니다")
+                continue
             except Exception as e:
-                logger.warning(f"PID {pid} 종료 신호 전송 실패: {e}")
-        
-        # 그레이스 기간 대기
-        logger.debug("그레이스 기간 대기 시작")
-        for sec in range(1, grace_period + 1):
-            running_pids = []
-            for pid in pids:
-                try:
-                    # 프로세스 존재 확인
-                    os.kill(pid, 0)  # 신호 0은 프로세스 존재 확인용
-                    running_pids.append(pid)
-                    logger.debug(f"실행 중인 프로세스: PID {pid}")
-                except ProcessLookupError:
-                    logger.debug(f"PID {pid}가 종료됨")
-                except Exception as e:
-                    logger.debug(f"PID {pid} 확인 중 오류: {e}")
-            
-            if not running_pids:
-                logger.debug("모든 프로세스가 종료됨")
-                break
-            
-            logger.info(f"프로세스 종료 대기 중 {sec}/{grace_period}초... (남은 PID: {running_pids})")
-            time.sleep(1)
-        
-        # 강제 종료가 필요한 프로세스 확인
-        remaining_pids = []
+                logger.warning(f"PID {pid} SIGTERM 실패: {e}")
+
+        time.sleep(grace_period)
+
         for pid in pids:
             try:
-                os.kill(pid, 0)
-                remaining_pids.append(pid)
+                os.kill(pid, signal.SIGKILL)
             except ProcessLookupError:
-                pass
-            except Exception:
-                pass
-        
-        if remaining_pids:
-            logger.warning(f"그레이스풀 종료 실패, 강제 종료 시도: PID {remaining_pids}")
-            for pid in remaining_pids:
-                try:
-                    logger.debug(f"PID {pid}에 SIGKILL 전송")
-                    os.kill(pid, signal.SIGKILL)
-                except ProcessLookupError:
-                    logger.debug(f"PID {pid}가 이미 종료됨")
-                except Exception as e:
-                    logger.error(f"PID {pid} 강제 종료 실패: {e}")
-        
-        # 최종 확인
-        final_running = []
-        for pid in pids:
-            try:
-                os.kill(pid, 0)
-                final_running.append(pid)
-            except ProcessLookupError:
-                pass
-            except Exception:
-                pass
-        
-        final_result = len(final_running) == 0
-        logger.debug(f"프로세스 종료 결과: {'성공' if final_result else '실패'}")
-        if final_running:
-            logger.error(f"여전히 실행 중인 프로세스: PID {final_running}")
-        
-        return final_result
+                continue
+            except Exception as e:
+                logger.warning(f"PID {pid} SIGKILL 실패: {e}")
+
+        return True
 
 
 class FileProcessor:
@@ -843,21 +869,21 @@ class StreamStopManager:
         self.mediamtx_manager.stop_mediamtx()
         
         # 기타 프로세스 정리
-        logger.debug("기타 프로세스 정리 시작")
-        try:
-            # run_daemon.py 프로세스 정리
-            logger.debug("run_daemon.py 프로세스 정리")
-            result = subprocess.run(['pkill', '-TERM', '-f', 'run_daemon.py'], 
-                                  check=False, capture_output=True, text=True)
-            if result.returncode != 0:
-                logger.debug(f"run_daemon.py pkill 결과: returncode={result.returncode}")
-                if result.stderr:
-                    logger.debug(f"run_daemon.py pkill stderr: {result.stderr.strip()}")
-            else:
-                logger.debug("run_daemon.py pkill 성공")
+        # logger.debug("기타 프로세스 정리 시작")
+        # try:
+        #     # run_daemon.py 프로세스 정리
+        #     logger.debug("run_daemon.py 프로세스 정리")
+        #     result = subprocess.run(['pkill', '-TERM', '-f', 'run_daemon.py'], 
+        #                           check=False, capture_output=True, text=True)
+        #     if result.returncode != 0:
+        #         logger.debug(f"run_daemon.py pkill 결과: returncode={result.returncode}")
+        #         if result.stderr:
+        #             logger.debug(f"run_daemon.py pkill stderr: {result.stderr.strip()}")
+        #     else:
+        #         logger.debug("run_daemon.py pkill 성공")
                 
-        except Exception as e:
-            logger.warning(f"기타 프로세스 정리 중 오류: {e}")
+        # except Exception as e:
+        #     logger.warning(f"기타 프로세스 정리 중 오류: {e}")
         
         # 로그 파일 정보
         logger.info("📁 로그 파일들은 보존됩니다:")
