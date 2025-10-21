@@ -210,6 +210,7 @@ class VideoWriterManager:
     
     def __init__(self, config: RTSPConfig):
         self.config = config
+        self.blackbox_manager = None
         self.current_writer = None
         self.current_temp_file = None   # 현재 임시 파일 경로
         self.current_final_file = None  # 최종 파일 경로
@@ -235,6 +236,10 @@ class VideoWriterManager:
         # 세그먼트 이벤트 리스너 (예: SRT 자막 작성기)
         self.segment_listeners = []
         
+    def set_blackbox_manager(self, blackbox_manager):
+        """블랙박스 매니저 설정 (파일명에 API 값 반영용)"""
+        self.blackbox_manager = blackbox_manager
+
     def _duration_seconds_from_frames(self, frame_count: int) -> float:
         """프레임 수를 기반으로 영상 길이(초)를 계산"""
         fps = float(getattr(self.config, 'input_fps', 0)) or 0.0
@@ -282,8 +287,48 @@ class VideoWriterManager:
         # 파일명 생성용 계획 시각(스케줄 기준)
         planned_start_time = self.anchor_wall_time + timedelta(seconds=self.segment_index * self.max_duration)
         
-        # 파일명 생성: {배이름}_{스트림번호}_{YYMMDD}_{HHMMSS}.mp4
-        filename = generate_filename(self.config.overlay_config, planned_start_time)
+        # 파일명 생성: API의 vesselNumber(문자열)를 우선 사용하도록 overlay_config에 일시 반영
+        temp_overlay = self.config.overlay_config
+        original_vessel_id = getattr(temp_overlay, 'vessel_id', None)
+        original_vessel_number = getattr(temp_overlay, 'vessel_number', None)
+        try:
+            api_vessel_number = None
+            api_vessel_id = None
+            if self.blackbox_manager is not None:
+                # 1) 카메라 디바이스의 vesselNumber 우선, 없으면 vesselId
+                try:
+                    stream_num = getattr(self.config.overlay_config, 'stream_number', 1)
+                    camera_device = self.blackbox_manager.api_client.get_camera_device(stream_num)
+                    if camera_device:
+                        if getattr(camera_device, 'vessel_number', None) is not None:
+                            api_vessel_number = camera_device.vessel_number
+                        if getattr(camera_device, 'vessel_id', None) is not None:
+                            api_vessel_id = camera_device.vessel_id
+                except Exception:
+                    api_vessel_number = None
+                    api_vessel_id = None
+                # 2) 없으면 최신 블랙박스 데이터의 vesselNumber, 없으면 vessel_id 사용
+                if api_vessel_number is None:
+                    try:
+                        blackbox_data = self.blackbox_manager.get_blackbox_data()
+                        if blackbox_data:
+                            if getattr(blackbox_data, 'vessel_number', None) is not None:
+                                api_vessel_number = blackbox_data.vessel_number
+                            elif getattr(blackbox_data, 'vessel_id', None) is not None:
+                                api_vessel_id = blackbox_data.vessel_id
+                    except Exception:
+                        api_vessel_number = None
+                        api_vessel_id = None
+            # 일시적으로 overlay_config에 반영하여 파일명 생성
+            if api_vessel_number is not None:
+                setattr(temp_overlay, 'vessel_number', str(api_vessel_number))
+            elif api_vessel_id is not None:
+                setattr(temp_overlay, 'vessel_id', str(api_vessel_id))
+            filename = generate_filename(temp_overlay, planned_start_time)
+        finally:
+            # 원래 값 복원
+            setattr(temp_overlay, 'vessel_id', original_vessel_id)
+            setattr(temp_overlay, 'vessel_number', original_vessel_number)
         
         # 임시 파일명: temp_{원본파일명}
         temp_filename = f"temp_{filename}"

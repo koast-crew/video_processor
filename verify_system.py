@@ -251,7 +251,7 @@ class SystemVerifier:
                 self.add_result("API 연결", "블랙박스 데이터", "PASS", 
                                "GPS 데이터 수신 성공",
                                {
-                                   'vessel_id': blackbox_data.vessel_id,
+                                   'vessel_name': blackbox_data.vessel_name,
                                    'vessel_name': blackbox_data.vessel_name,
                                    'speed': blackbox_data.speed,
                                    'latitude': blackbox_data.latitude,
@@ -261,7 +261,7 @@ class SystemVerifier:
                                })
                 
                 logger.info(f"✓ 블랙박스 GPS 데이터 수신 성공")
-                logger.info(f"  - 선박 ID: {blackbox_data.vessel_id}")
+                logger.info(f"  - 선박 ID: {blackbox_data.vessel_name}")
                 logger.info(f"  - 선박명: {blackbox_data.vessel_name}")
                 logger.info(f"  - 어구: {blackbox_data.gear_code} ({blackbox_data.gear_name_ko})")
                 logger.info(f"  - 현재 속도: {blackbox_data.speed} knots")
@@ -285,7 +285,7 @@ class SystemVerifier:
                                    'device_name': camera_device.device_name,
                                    'device_key': camera_device.device_key,
                                    'view_order': camera_device.view_order,
-                                   'vessel_id': camera_device.vessel_id,
+                                   'vessel_name': camera_device.vessel_name,
                                    'vessel_name': camera_device.vessel_name
                                })
                 
@@ -293,7 +293,7 @@ class SystemVerifier:
                 logger.info(f"  - 디바이스명: {camera_device.device_name}")
                 logger.info(f"  - 디바이스 키: {camera_device.device_key}")
                 logger.info(f"  - 표시 순서: {camera_device.view_order}")
-                logger.info(f"  - 선박 ID: {camera_device.vessel_id}")
+                logger.info(f"  - 선박 ID: {camera_device.vessel_name}")
                 logger.info(f"  - 선박명: {camera_device.vessel_name}")
                 
             else:
@@ -342,7 +342,7 @@ class SystemVerifier:
         
         # 선박 정보 폴백 확인
         vessel_fallback = {
-            'vessel_id': test_video_data.vessel_id,
+            'vessel_name': test_video_data.vessel_name,
             'vessel_name': test_video_data.vessel_name,
             'gear_code': test_video_data.gear_code,
             'gear_name': test_video_data.gear_name,
@@ -350,7 +350,7 @@ class SystemVerifier:
         }
         
         logger.info(f"선박 정보 폴백:")
-        logger.info(f"  - vessel_id: {vessel_fallback['vessel_id']}")
+        logger.info(f"  - vessel_name: {vessel_fallback['vessel_name']}")
         logger.info(f"  - vessel_name: {vessel_fallback['vessel_name']}")
         logger.info(f"  - gear_code: {vessel_fallback['gear_code']}")
         logger.info(f"  - gear_name: {vessel_fallback['gear_name']} ({vessel_fallback['gear_name_ko']})")
@@ -392,21 +392,21 @@ class SystemVerifier:
                 )
                 
                 vessel_matches = (
-                    camera_device.vessel_id is not None and
-                    test_video_data.vessel_id == camera_device.vessel_id and
+                    camera_device.vessel_name is not None and
+                    test_video_data.vessel_name == camera_device.vessel_name and
                     test_video_data.vessel_name == camera_device.vessel_name
                 )
                 
                 logger.info(f"API 카메라 정보:")
                 logger.info(f"  - cameraName (device_name): {camera_device.device_name}")
                 logger.info(f"  - cameraKey (device_key): {camera_device.device_key}")
-                logger.info(f"  - vesselId: {camera_device.vessel_id}")
+                logger.info(f"  - vesselName: {camera_device.vessel_name}")
                 logger.info(f"  - vesselName: {camera_device.vessel_name}")
                 
                 logger.info(f"\n실제 저장 시 사용되는 값:")
                 logger.info(f"  - cameraName (camera_name): {test_video_data.camera_name}")
                 logger.info(f"  - cameraKey (camera_key): {test_video_data.camera_key}")
-                logger.info(f"  - vesselId: {test_video_data.vessel_id}")
+                logger.info(f"  - vesselName: {test_video_data.vessel_name}")
                 logger.info(f"  - vesselName: {test_video_data.vessel_name}")
                 
                 if api_matches:
@@ -425,22 +425,22 @@ class SystemVerifier:
                     logger.error(f"✗ API 값과 실제 사용 값이 다름")
                 
                 if vessel_matches:
-                    self.add_result("카메라 정보 사용", "vesselId/Name", "PASS",
-                                   "API의 vesselId, vesselName이 영상 저장에 사용됨",
+                    self.add_result("카메라 정보 사용", "vesselName/Name", "PASS",
+                                   "API의 vesselName, vesselName이 영상 저장에 사용됨",
                                    {
-                                       'api_vessel_id': camera_device.vessel_id,
-                                       'used_vessel_id': test_video_data.vessel_id,
+                                       'api_vessel_name': camera_device.vessel_name,
+                                       'used_vessel_name': test_video_data.vessel_name,
                                        'api_vessel_name': camera_device.vessel_name,
                                        'used_vessel_name': test_video_data.vessel_name
                                    })
-                    logger.info(f"✓ API vesselId/vesselName이 영상 저장에 사용됨")
+                    logger.info(f"✓ API vesselName/vesselName이 영상 저장에 사용됨")
                 else:
-                    if camera_device.vessel_id is None:
-                        self.add_result("카메라 정보 사용", "vesselId/Name", "WARNING",
+                    if camera_device.vessel_name is None:
+                        self.add_result("카메라 정보 사용", "vesselName/Name", "WARNING",
                                        "API에 vessel 정보 없음 - 폴백 값 사용")
                         logger.warning(f"⚠ API에 vessel 정보 없음 - 폴백 값 사용")
                     else:
-                        self.add_result("카메라 정보 사용", "vesselId/Name", "FAIL",
+                        self.add_result("카메라 정보 사용", "vesselName/Name", "FAIL",
                                        "API vessel 값과 실제 사용 값이 다름")
                         logger.error(f"✗ API vessel 값과 실제 사용 값이 다름")
             else:
@@ -729,7 +729,7 @@ def main():
                     blackbox_data = api_client.get_latest_gps()
                     if blackbox_data:
                         logger.info("✓ 블랙박스 GPS 데이터 수신 성공")
-                        logger.info(f"  - 선박 ID: {blackbox_data.vessel_id}")
+                        logger.info(f"  - 선박 ID: {blackbox_data.vessel_name}")
                         logger.info(f"  - 선박명: {blackbox_data.vessel_name}")
                         logger.info(f"  - 현재 속도: {blackbox_data.speed} knots")
                         api_verified = True

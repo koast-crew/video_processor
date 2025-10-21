@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 class BlackboxData:
 	"""블랙박스 데이터 클래스"""
 	vessel_id: Optional[int] = None
+	vessel_number: Optional[str] = None
 	vessel_name: Optional[str] = None
 	gear_code: Optional[str] = None
 	gear_name: Optional[str] = None
@@ -41,6 +42,7 @@ class CameraDevice:
 	device_key: str
 	view_order: int
 	vessel_id: Optional[int] = None
+	vessel_number: Optional[str] = None
 	vessel_name: Optional[str] = None
 
 @dataclass
@@ -112,13 +114,14 @@ class BlackboxAPIClient:
 				BlackboxAPIClient._camera_devices = None
 				return False
 			
-			# deviceName, deviceKey, viewOrder, vesselId, vesselName 추출하여 정렬
+			# deviceName, deviceKey, viewOrder, vesselId, vesselNumber, vesselName 추출하여 정렬
 			camera_list = []
 			for device in payload:
 				device_name = device.get('deviceName')
 				device_key = device.get('deviceKey')
 				view_order = device.get('viewOrder', 999)
 				vessel_id = device.get('vesselId')
+				vessel_number = device.get('vesselNumber')
 				vessel_name = device.get('vesselName')
 				
 				if device_name and device_key:
@@ -127,6 +130,7 @@ class BlackboxAPIClient:
 						device_key=device_key,
 						view_order=view_order,
 						vessel_id=vessel_id,
+						vessel_number=vessel_number,
 						vessel_name=vessel_name
 					))
 			
@@ -139,6 +143,7 @@ class BlackboxAPIClient:
 				logger.info(f"  [{idx}] cameraName: {cam.device_name}")
 				logger.info(f"      cameraKey: {cam.device_key}")
 				logger.info(f"      vesselId: {cam.vessel_id}")
+				logger.info(f"      vesselNumber: {cam.vessel_number}")
 				logger.info(f"      vesselName: {cam.vessel_name}")
 				logger.info(f"      viewOrder: {cam.view_order}")
 			return True
@@ -231,6 +236,7 @@ class BlackboxAPIClient:
 			
 			blackbox_data = BlackboxData(
 				vessel_id=payload.get('vesselId'),
+				vessel_number=payload.get('vesselNumber'),
 				vessel_name=payload.get('vesselName'),
 				gear_code=payload.get('gearCode'),
 				gear_name=payload.get('gearName'),
