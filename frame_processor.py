@@ -216,6 +216,11 @@ class FrameProcessor(threading.Thread):
 		"""블랙박스 매니저 설정"""
 		self.blackbox_manager = blackbox_manager
 		self.overlay_renderer.set_blackbox_manager(blackbox_manager)
+		# 파일명 생성 시 API 값을 사용할 수 있도록 비디오 라이터에도 설정
+		try:
+			self.video_writer.set_blackbox_manager(blackbox_manager)
+		except Exception:
+			pass
 		logger.info("FrameProcessor에 블랙박스 매니저 설정됨")
 	
 	def run(self):

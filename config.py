@@ -47,6 +47,8 @@ def get_env_value(key: str, default_value, value_type=str):
 @dataclass
 class OverlayConfig:
     """오버레이 표시 정보 (60분법 GPS)"""
+    vessel_id: Optional[str] = None
+    vessel_number: Optional[str] = None
     vessel_name: str = "DEFAULT_VESSEL"
     stream_number: int = 1
     latitude: float = 0            # 십진법으로 저장 (서울 기본값)
@@ -297,6 +299,8 @@ class RTSPConfig:
         """초기화 후 처리"""
         if self.overlay_config is None:
             self.overlay_config = OverlayConfig(
+                vessel_id=get_env_value('VESSEL_ID', None),
+                vessel_number=get_env_value('VESSEL_NUMBER', None),
                 vessel_name=get_env_value('VESSEL_NAME', 'DEFAULT_VESSEL'),
                 stream_number=get_env_value('STREAM_NUMBER', 1, int),
                 latitude=get_env_value('DEFAULT_LATITUDE', None, float),
@@ -383,17 +387,29 @@ class RTSPConfig:
             return False
 
 def generate_filename(overlay_config: OverlayConfig, timestamp: datetime = None) -> str:
-    """파일명 생성: {배이름}_{스트림번호}_{YYMMDD}_{HHMMSS}.mp4"""
+    """파일명 생성: {배번호(or ID, 이름)}_{스트림번호}_{YYMMDD}_{HHMMSS}.mp4"""
     if timestamp is None:
         timestamp = datetime.now(timezone.utc)
     
     date_str = timestamp.strftime("%y%m%d")    # YYMMDD
     time_str = timestamp.strftime("%H%M%S")    # HHMMSS
     
-    # 배 이름에서 특수문자 제거 (파일명 안전성)
+    # 식별자(배번호/ID/이름)에서 특수문자 제거 (파일명 안전성)
+    safe_vessel_number = None
+    if getattr(overlay_config, 'vessel_number', None) is not None:
+        safe_vessel_number = re.sub(r'[^\w\-_]', '_', str(overlay_config.vessel_number))
+    safe_vessel_id = None
+    if overlay_config.vessel_id is not None:
+        safe_vessel_id = re.sub(r'[^\w\-_]', '_', str(overlay_config.vessel_id))
     safe_vessel_name = re.sub(r'[^\w\-_]', '_', overlay_config.vessel_name)
-    
-    filename = f"{safe_vessel_name}_stream{overlay_config.stream_number:02d}_{date_str}_{time_str}.mp4"
+
+    base_identifier = (
+        safe_vessel_number if safe_vessel_number else (
+            safe_vessel_id if safe_vessel_id else safe_vessel_name
+        )
+    )
+
+    filename = f"{base_identifier}_stream{overlay_config.stream_number:02d}_{date_str}_{time_str}.mp4"
     return filename
 
 def decimal_to_dms_short(decimal_degrees: float, is_longitude: bool = False) -> str:
