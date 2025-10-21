@@ -109,7 +109,7 @@ sudo systemctl start stream.service
 sudo systemctl status stream.service
 ```
 
-## NAS 마운트트 설정
+## NAS 마운트 설정
 
 ```bash
 # 1. nfs-common 설치
