@@ -405,26 +405,26 @@ def create_camera_video_data(
 	# vessel 정보 우선순위: API 카메라 디바이스 정보 -> blackbox_data -> 기본값
 	if camera_device is not None and camera_device.vessel_id is not None:
 		vessel_id = camera_device.vessel_id
-		vessel_name = camera_device.vessel_name or "vesselTest"
+		vessel_name = camera_device.vessel_name or "no_data"
 		logger.debug(f"스트림 {stream_num}: API vessel 정보 사용 - {vessel_name} ({vessel_id})")
 	elif blackbox_data:
 		vessel_id = blackbox_data.vessel_id or 1
-		vessel_name = blackbox_data.vessel_name or "vesselTest"
+		vessel_name = blackbox_data.vessel_name or "no_data"
 		logger.debug(f"스트림 {stream_num}: Blackbox vessel 정보 사용 - {vessel_name} ({vessel_id})")
 	else:
 		vessel_id = 1
-		vessel_name = "vesselTest"
+		vessel_name = "no_data"
 		logger.debug(f"스트림 {stream_num}: 기본 vessel 정보 사용 - {vessel_name} ({vessel_id})")
 	
 	# gear 정보는 blackbox_data에서 가져오거나 기본값 사용
 	if blackbox_data:
-		gear_code = blackbox_data.gear_code or "PS"
-		gear_name = blackbox_data.gear_name or "Purse Seine"
-		gear_name_ko = blackbox_data.gear_name_ko or "선망"
+		gear_code = blackbox_data.gear_code or "no_data"
+		gear_name = blackbox_data.gear_name or "no_data"
+		gear_name_ko = blackbox_data.gear_name_ko or "no_data"
 	else:
-		gear_code = "PS"
-		gear_name = "Purse Seine"
-		gear_name_ko = "선망"
+		gear_code = "no_data"
+		gear_name = "no_data"
+		gear_name_ko = "no_data"
 	
 	return CameraVideoData(
 		camera_id=camera_id,

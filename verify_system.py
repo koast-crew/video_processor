@@ -125,7 +125,7 @@ class SystemVerifier:
         # 환경 파일 로드
         if load_stream_env(env_file):
             # 로드된 환경변수에서 스트림 번호 추출
-            self.stream_number = int(os.getenv('STREAM_NUMBER', '0'))
+            self.stream_number = int(os.getenv('STREAM_NUMBER'))
         
     def add_result(self, category: str, item: str, status: str, message: str, details: Optional[Dict] = None):
         """검증 결과 추가"""
@@ -188,11 +188,8 @@ class SystemVerifier:
         
         # 중요 설정 환경변수
         important_vars = {
-            'VESSEL_NAME': '선박 이름',
             'RECORDING_SPEED_THRESHOLD': '녹화 시작 속도 임계값 (knots)',
             'BLACKBOX_ENABLED': '블랙박스 API 사용 여부',
-            'BLUR_ENABLED': '블러 처리 활성화',
-            'API_POLL_INTERVAL': 'API 폴링 간격 (초)',
             'VIDEO_SEGMENT_DURATION': '영상 세그먼트 길이 (초)',
             'TEMP_OUTPUT_PATH': '임시 저장 경로',
             'FINAL_OUTPUT_PATH': '최종 저장 경로',
@@ -228,7 +225,7 @@ class SystemVerifier:
                 logger.warning(f"⚠ {var} 미설정 (기본값 사용)")
         
         # 조업 판단 기준 상세 확인
-        speed_threshold = os.getenv('RECORDING_SPEED_THRESHOLD', '5.0')
+        speed_threshold = os.getenv('RECORDING_SPEED_THRESHOLD')
         logger.info(f"\n조업 판단 기준:")
         logger.info(f"  - 속도 임계값: {speed_threshold} knots 이상 시 녹화 중지")
         
@@ -237,8 +234,8 @@ class SystemVerifier:
         logger.info("\n[검증 1] API 호출 및 데이터 확인")
         logger.info("-" * 80)
         
-        api_url = os.getenv('BLACKBOX_API_URL', 'http://localhost')
-        api_timeout = int(os.getenv('API_TIMEOUT', '5'))
+        api_url = os.getenv('BLACKBOX_API_URL')
+        api_timeout = int(os.getenv('API_TIMEOUT'))
         
         try:
             self.api_client = BlackboxAPIClient(base_url=api_url, timeout=api_timeout)
@@ -275,7 +272,7 @@ class SystemVerifier:
                 logger.error(f"✗ 블랙박스 GPS 데이터 수신 실패")
             
             # 카메라 디바이스 정보 확인
-            stream_num = self.stream_number or int(os.getenv('STREAM_NUMBER', '1'))
+            stream_num = self.stream_number or int(os.getenv('STREAM_NUMBER'))
             camera_device = self.api_client.get_camera_device(stream_num)
             
             if camera_device:
@@ -313,7 +310,7 @@ class SystemVerifier:
         logger.info("-" * 80)
         
         # API 클라이언트를 None으로 설정하여 폴백 테스트
-        stream_num = self.stream_number or int(os.getenv('STREAM_NUMBER', '1'))
+        stream_num = self.stream_number or int(os.getenv('STREAM_NUMBER'))
         
         # 폴백 시나리오 테스트
         logger.info("API 미사용 시나리오 테스트:")
@@ -367,7 +364,7 @@ class SystemVerifier:
         logger.info("\n[검증 4] 카메라 영상 저장 시 디바이스 API 값 사용 확인")
         logger.info("-" * 80)
         
-        stream_num = self.stream_number or int(os.getenv('STREAM_NUMBER', '1'))
+        stream_num = self.stream_number or int(os.getenv('STREAM_NUMBER'))
         
         if self.api_client:
             # API에서 카메라 정보 가져오기
@@ -458,9 +455,9 @@ class SystemVerifier:
         logger.info("-" * 80)
         
         # 환경변수에서 경로 가져오기
-        temp_path = os.getenv('TEMP_OUTPUT_PATH', './output/temp/')
-        final_path = os.getenv('FINAL_OUTPUT_PATH', '/mnt/nas/cam/')
-        log_dir = os.getenv('LOG_DIR', './logs')
+        temp_path = os.getenv('TEMP_OUTPUT_PATH')
+        final_path = os.getenv('FINAL_OUTPUT_PATH')
+        log_dir = os.getenv('LOG_DIR')
         
         paths_to_check = {
             '임시 저장 경로': temp_path,
@@ -496,7 +493,7 @@ class SystemVerifier:
                     logger.error(f"    ✗ 경로 없음, 생성 불가")
         
         # 영상 세그먼트 설정 확인
-        segment_duration = os.getenv('VIDEO_SEGMENT_DURATION', '300')
+        segment_duration = os.getenv('VIDEO_SEGMENT_DURATION')
         logger.info(f"\n영상 저장 설정:")
         logger.info(f"  - 세그먼트 길이: {segment_duration}초")
         
@@ -668,7 +665,7 @@ def main():
                        help='환경변수만 검증')
     parser.add_argument('--export', metavar='FILE',
                        help='결과를 JSON 파일로 저장')
-    parser.add_argument('--verbose', '-v', action='store_true',
+    parser.add_argument('--verbose', default=True,
                        help='콘솔에 상세 로그 출력 (기본: 요약만)')
     parser.add_argument('--debug', action='store_true',
                        help='디버그 모드 (더 상세한 로그)')
@@ -717,8 +714,8 @@ def main():
             
             # 첫 번째 환경 파일로 API 클라이언트 초기화
             if load_stream_env(env_files[0]):
-                api_url = os.getenv('BLACKBOX_API_URL', 'http://localhost')
-                api_timeout = int(os.getenv('API_TIMEOUT', '5'))
+                api_url = os.getenv('BLACKBOX_API_URL')
+                api_timeout = int(os.getenv('API_TIMEOUT'))
                 
                 try:
                     api_client = BlackboxAPIClient(base_url=api_url, timeout=api_timeout)
