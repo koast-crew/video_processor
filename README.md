@@ -50,9 +50,8 @@ rm mediamtx_v1.9.1_linux_amd64.tar.gz
 # 6) 전체 스트림 + 파일 이동 서비스 실행 (사전에 systemctl 설정 필요)
 sudo systemctl start stream.service
 
-# 7) 상태 확인 및 중지
-./status_all_streams.sh
-./stop_all_streams.sh
+# 7) 상태 확인 
+sudo systemctl status stream.service
 
 ```
 
@@ -75,12 +74,10 @@ Environment=PATH=/usr/local/bin:/usr/bin:/bin:/home/koast-user/.local/bin
 WorkingDirectory=/home/koast-user/oper/video_processor
 
 ExecStart=/home/koast-user/oper/video_processor/run_daemon.py
-ExecStop=/bin/bash -lc './stop_all_streams.sh'
 
 Restart=no
 
-KillMode=process
-#SendSIGKILL=no
+KillMode=control-group
 SyslogLevel=debug
 TimeoutStopSec=180
 
@@ -112,9 +109,25 @@ sudo systemctl start stream.service
 sudo systemctl status stream.service
 ```
 
+## NAS 마운트 설정
 
-- 내부 실행은 `uv run python`으로 수행되므로, 별도 가상환경 활성화 없이도 실행됩니다.
-- ultralytics는 필수입니다. 모델 파일(.pt) 경로는 `HEAD_BLUR_MODEL_PATH` 환경변수로 지정하세요. (미지정 시 `blur_module/models/best_re_final.pt`를 찾습니다.)
+```bash
+# 1. nfs-common 설치
+sudo apt update
+sudo apt install nfs-common
+
+# 2. NAS 마운트할 경로 생성
+sudo mkdir -p /mnt/nas
+
+# 3. fstab 설정
+sudo nano /etc/fstab
+# 아래 내용 한 줄 추가하고 저장 (콤마, 띄어쓰기 주의)
+192.168.10.30:/volume1/em_data /mnt/nas nfs vers=4.1,defaults 0 0
+
+# 4. 마운트
+sudo systemctl daemon-reload
+sudo mount -a
+```
 
 ## 🔍 시스템 검증 (필수)
 
@@ -123,7 +136,7 @@ sudo systemctl status stream.service
 ### 자동 검증 스크립트
 
 ```bash
-# 모든 .env.streamN 파일 자동 검증 (콘솔에는 요약만 출력)
+# 모든 .env.streamN 파일과 API 검증증
 uv run python verify_system.py
 
 # 콘솔에 상세 로그도 출력
@@ -134,9 +147,6 @@ uv run python verify_system.py --env-only
 
 # API만 검증
 uv run python verify_system.py --api-only
-
-# 결과를 JSON 파일로 저장
-uv run python verify_system.py --export verification_result.json
 ```
 
 **참고:** 
@@ -153,15 +163,6 @@ uv run python verify_system.py --export verification_result.json
 
 **상세 검증 가이드:** [VERIFICATION.md](VERIFICATION.md) 참조
 
-### 수동 API 테스트
-
-```bash
-# 블랙박스 API 테스트 (1회 조회)
-python3 test_blackbox_api.py --base-url http://localhost --debug
-
-# 주기적 조회 (2초마다)
-python3 test_blackbox_api.py --base-url http://localhost --watch 2
-```
 
 ## 📦 구성 파일 개요
 
