@@ -67,7 +67,7 @@ def find_all_stream_env_files() -> List[str]:
     import glob
     
     # .env.stream* 패턴으로 파일 찾기
-    env_files = glob.glob('.env.stream[0-9]*')
+    env_files = glob.glob('.env.stream[0-9]')
     
     # 숫자 순서로 정렬
     def get_stream_number(filepath):
